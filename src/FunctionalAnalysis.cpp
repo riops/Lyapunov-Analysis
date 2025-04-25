@@ -229,123 +229,86 @@ std::vector<std::vector<long double>> RungeKutta45(
 std::vector<std::vector<long double>>
 RungeKutta45Mpi(const std::function<std::vector<long double>(
                     const std::vector<long double> &)> &f,
-                const std::vector<long double> &point_full, long double dt) {
+                const std::vector<long double> &point, long double dt) {
   int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  const size_t M = point_full.size();
-  // --- compute this rank's slice [off, off+local_n)
-  size_t base = M / size, rem = M % size;
-  size_t local_n = base + (rank < rem ? 1 : 0);
-  size_t off = rank * base + std::min<size_t>(rank, rem);
+  size_t M = point.size();
 
-  // --- static buffers, allocated once
-  static std::vector<long double> temp_full, deriv_full;
-  static std::vector<long double> temp_loc, deriv_loc;
-  static std::vector<std::vector<long double>> k_loc(6);
+  // Static buffers: allocate once
   static bool first = true;
+  static std::vector<long double> ytemp, sol4, dtout;
+  static std::vector<std::vector<long double>> k(6);
   if (first) {
-    temp_full.resize(M);
-    deriv_full.resize(M);
-    temp_loc.resize(local_n);
-    deriv_loc.resize(local_n);
-    for (int s = 0; s < 6; ++s)
-      k_loc[s].resize(local_n);
+    ytemp.resize(M);
+    sol4.resize(M);
+    dtout.resize(1);
+    for (int i = 0; i < 6; ++i)
+      k[i].resize(M);
     first = false;
   }
 
-  // --- for each of the 6 stages:
+  // --- 6 stages, one per rank ---
   for (int stage = 0; stage < 6; ++stage) {
-// build this rank's slice of the stage-input temp_full
-#pragma omp parallel for
-    for (size_t i = off; i < off + local_n; ++i) {
-      long double acc = 0;
+    // build ytemp = point + dt * sum_{j<stage} a_{stage,j} * k[j]
+    for (size_t i = 0; i < M; ++i) {
+      long double acc = 0.0L;
       switch (stage) {
       case 0:
-        temp_full[i] = point_full[i];
-        continue;
+        acc = 0;
+        break;
       case 1:
-        acc = a21 * k_loc[0][i - off];
+        acc = a21 * k[0][i];
         break;
       case 2:
-        acc = a31 * k_loc[0][i - off] + a32 * k_loc[1][i - off];
+        acc = a31 * k[0][i] + a32 * k[1][i];
         break;
       case 3:
-        acc = a41 * k_loc[0][i - off] + a42 * k_loc[1][i - off] +
-              a43 * k_loc[2][i - off];
+        acc = a41 * k[0][i] + a42 * k[1][i] + a43 * k[2][i];
         break;
       case 4:
-        acc = a51 * k_loc[0][i - off] + a52 * k_loc[1][i - off] +
-              a53 * k_loc[2][i - off] + a54 * k_loc[3][i - off];
+        acc = a51 * k[0][i] + a52 * k[1][i] + a53 * k[2][i] + a54 * k[3][i];
         break;
       case 5:
-        acc = a61 * k_loc[0][i - off] + a62 * k_loc[1][i - off] +
-              a63 * k_loc[2][i - off] + a64 * k_loc[3][i - off] +
-              a65 * k_loc[4][i - off];
+        acc = a61 * k[0][i] + a62 * k[1][i] + a63 * k[2][i] + a64 * k[3][i] +
+              a65 * k[4][i];
         break;
       }
-      temp_full[i] = point_full[i] + dt * acc;
+      ytemp[i] = point[i] + dt * acc;
     }
 
-    // gather the full temp_full on every rank
-    MPI_Allgather(
-        /* sendbuf */ temp_full.data() + off, local_n, MPI_LONG_DOUBLE,
-        /* recvbuf */ temp_full.data(), base + (rem > 0), MPI_LONG_DOUBLE,
-        MPI_COMM_WORLD);
-
-    // now compute the full derivative at this stage
-    deriv_full = f(temp_full);
-
-// extract this rank's slice
-#pragma omp parallel for
-    for (size_t i = 0; i < local_n; ++i)
-      deriv_loc[i] = deriv_full[off + i];
-
-    // reduce+scatter so that k_loc[stage] holds exactly this rank's slice of
-    // the global k-vector
-    MPI_Reduce_scatter_block(
-        /* sendbuf */ deriv_loc.data(),
-        /* recvbuf */ k_loc[stage].data(),
-        /* recvcount */ local_n, MPI_LONG_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    // Only "root" for this stage computes f(ytemp)
+    int root = stage % size;
+    if (rank == root) {
+      auto kv = f(ytemp);
+      k[stage].swap(kv);
+    }
+    // Broadcast that k[stage] back to everyone
+    MPI_Bcast(k[stage].data(), M, MPI_LONG_DOUBLE, root, MPI_COMM_WORLD);
   }
 
-  // --- now each rank has k_loc[0..5] for its slice; compute local res4, res5,
-  // and local err²
-  std::vector<long double> res4_loc(local_n), res5_loc(local_n);
-  long double err2_loc = 0;
-#pragma omp parallel for reduction(+ : err2_loc)
-  for (size_t i = 0; i < local_n; ++i) {
-    long double i_pt = point_full[off + i];
-    res4_loc[i] = i_pt + dt * (b4_1 * k_loc[0][i] + b4_3 * k_loc[2][i] +
-                               b4_4 * k_loc[3][i] + b4_5 * k_loc[4][i]);
-    long double r5 = i_pt + dt * (b5_1 * k_loc[0][i] + b5_3 * k_loc[2][i] +
-                                  b5_4 * k_loc[3][i] + b5_5 * k_loc[4][i] +
-                                  b5_6 * k_loc[5][i]);
-    err2_loc += (r5 - res4_loc[i]) * (r5 - res4_loc[i]);
-    res5_loc[i] = r5;
-  }
-
-  // --- get global error² and compute new dt on rank 0
-  long double err2_glob = 0;
-  MPI_Allreduce(&err2_loc, &err2_glob, 1, MPI_LONG_DOUBLE, MPI_SUM,
-                MPI_COMM_WORLD);
-  long double dt_new = 0;
+  // --- combine into 4th-order sol and estimate error on rank 0 ---
   if (rank == 0) {
-    dt_new = AdjustStepSize(dt, std::sqrt(err2_glob), TOL);
+    for (size_t i = 0; i < M; ++i) {
+      sol4[i] = point[i] + dt * (b4_1 * k[0][i] + b4_3 * k[2][i] +
+                                 b4_4 * k[3][i] + b4_5 * k[4][i]);
+    }
+    long double err2 = 0.0L;
+    for (size_t i = 0; i < M; ++i) {
+      long double r5 =
+          point[i] + dt * (b5_1 * k[0][i] + b5_3 * k[2][i] + b5_4 * k[3][i] +
+                           b5_5 * k[4][i] + b5_6 * k[5][i]);
+      long double d = r5 - sol4[i];
+      err2 += d * d;
+    }
+    dtout[0] = AdjustStepSize(dt, std::sqrt(err2), TOL);
   }
-  // broadcast the new dt
-  MPI_Bcast(&dt_new, 1, MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
+  // Broadcast the solution and new dt to everyone
+  MPI_Bcast(sol4.data(), M, MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
+  MPI_Bcast(dtout.data(), 1, MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
 
-  // --- assemble the full res4 into temp_full (only for rank 0 if
-  // allValues=false)
-  MPI_Allgather(
-      /* sendbuf */ res4_loc.data(), local_n, MPI_LONG_DOUBLE,
-      /* recvbuf */ temp_full.data(), base + (rem > 0), MPI_LONG_DOUBLE,
-      MPI_COMM_WORLD);
-
-  // return a two‐row matrix: [res4, dt_hist]
-  return {temp_full, std::vector<long double>{dt_new}};
+  return {sol4, dtout};
 }
 
 // Then IntegrateSystem45Mpi can call the above step in a loop, timing only on
