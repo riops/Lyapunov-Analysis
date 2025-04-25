@@ -23,66 +23,74 @@ struct HybridFunction {
 
 int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
-
   int world_size, world_rank;
   MPI_Comm_size(MPI_COMM_WORLD, &world_size);
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
 
-  omp_set_num_threads(omp_get_max_threads());
+  // Let each rank spawn 110 threads in the RHS
+  omp_set_num_threads(110);
 
+  // --- 1) Build your list of initial conditions (length ≥ world_size) ---
   int matrixDimension = 2;
-  int dimension = 48 * matrixDimension * matrixDimension * matrixDimension *
-                  matrixDimension;
-
-  int numIterations = 10;
-  long double dt = 1e-2L;
-
-  // build your initial condition
-  std::vector<long double> sigmaXX = {1.22577L, 0.603123L};
-  std::vector<long double> sigmaPP = {19.8276L, 10.0575L};
-  auto initialCondition =
-      GenerateInitialConditionReduced(sigmaXX, sigmaPP, matrixDimension);
-
-  if (world_rank == 0) {
-    std::cout << "Initial condition generated. Starting integration…\n";
+  std::vector<std::vector<long double>> allICs;
+  // Example: here we just make 6 slight variations; replace with your real data
+  for (int i = 0; i < world_size; ++i) {
+    long double scale = 1.0L + 0.1L * i;
+    std::vector<long double> sigmaXX = {1.22577L * scale, 0.603123L * scale};
+    std::vector<long double> sigmaPP = {19.8276L * scale, 10.0575L * scale};
+    allICs.push_back(
+        GenerateInitialConditionReduced(sigmaXX, sigmaPP, matrixDimension));
   }
 
-  // — every rank MUST call this —
-  auto spectrum = IntegrateSystem45Mpi(
-      averagedEquationsPolarizationBasisSymmetryReducedParallel,
-      initialCondition, dt, numIterations, true);
+  // Make sure we have at least one IC per rank:
+  if ((int)allICs.size() < world_size) {
+    if (world_rank == 0)
+      std::cerr << "Need at least " << world_size << " initial conditions!\n";
+    MPI_Finalize();
+    return 1;
+  }
 
-  // — only rank 0 writes the CSV and traced file —
+  // --- 2) Pick this rank’s initial condition ---
+  auto myIC = allICs[world_rank];
+
+  // Parameters
+  long double dt = 1e-2L;
+  int numSteps = 10;
+
   if (world_rank == 0) {
-    std::cout << "\nDone!\n\nWriting to file...\n\n";
+    std::cout << "Rank 0: starting " << world_size
+              << " trajectories in parallel...\n";
+  }
 
-    // timestamp for filename
-    auto now = std::chrono::system_clock::now();
-    std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm = *std::localtime(&t);
-    std::ostringstream oss;
-    oss << std::put_time(&tm, "%Y-%m-%d_%H-%M-%S");
-    std::string datetime = oss.str();
+  // --- 3) Do the serial RK45 integrator on your one trajectory ---
+  auto traj = IntegrateSystem45(
+      averagedEquationsPolarizationBasisSymmetryReducedParallel, myIC, dt,
+      numSteps, /*allValues=*/true);
 
-    std::string base = "./data/csv/EOMPolarizationBasisMpi_" + datetime;
-    std::ofstream fs(base + ".csv");
-    // write the trajectory (first numIterations rows × dimension cols)
-    for (int j = 0; j < numIterations; ++j) {
-      for (int k = 0; k < dimension; ++k) {
-        fs << spectrum[j][k] << (k + 1 < dimension ? "," : "");
+  // --- 4) Write out your own CSV and traced file ---
+  {
+    std::ostringstream fn;
+    fn << "./data/csv/traject_rank" << world_rank << ".csv";
+    std::ofstream fs(fn.str());
+    for (int step = 0; step < numSteps; ++step) {
+      auto &row = traj[step];
+      for (size_t j = 0; j < row.size(); ++j) {
+        fs << row[j] << (j + 1 < row.size() ? "," : "");
       }
       fs << "\n";
     }
-    // write the dtHistory (last row)
-    auto &dtRow = spectrum.back();
-    for (size_t i = 0; i < dtRow.size(); ++i) {
-      fs << dtRow[i] << (i + 1 < dtRow.size() ? "," : "");
-    }
-    fs << "\n";
     fs.close();
+  }
+  {
+    std::ostringstream fn;
+    fn << "./data/csv/traject_rank" << world_rank << "_traced.csv";
+    CalculateTracedValues(std::string("traject_rank") +
+                              std::to_string(world_rank) + ".csv",
+                          fn.str(), matrixDimension);
+  }
 
-    // compute traced values
-    CalculateTracedValues(base + ".csv", base + "_Traced.csv", matrixDimension);
+  if (world_rank == 0) {
+    std::cout << "All ranks done. Check data/csv/traject_rank*.csv\n";
   }
 
   MPI_Finalize();
