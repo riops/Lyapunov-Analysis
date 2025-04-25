@@ -8,4 +8,4 @@ builds/
 run_lyapunov_mpi.slurm
 
 #Todo.md files
-Todo.md
+./Todo.md
