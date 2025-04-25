@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
     fn << "./data/csv/EOMPolarizationBasis_" << datetime << "_" << world_rank
        << ".csv";
     std::ofstream fs(fn.str());
-    for (int step = 0; step < numSteps; ++step) {
+    for (size_t step = 0; step < traj.size(); ++step) {
       auto &row = traj[step];
       for (size_t j = 0; j < row.size(); ++j)
         fs << row[j] << (j + 1 < row.size() ? "," : "");
