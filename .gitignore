@@ -7,3 +7,5 @@ builds/
 # Slurm files
 run_lyapunov_mpi.slurm
 
+#Todo.md files
+Todo.md
