@@ -47,11 +47,10 @@ int main(int argc, char **argv) {
     std::cout << "Initial condition generated. Starting integration…\n";
   }
 
-  HybridFunction f{world_rank, world_size};
-
   // — every rank MUST call this —
-  auto spectrum = IntegrateSystem45_MpiRoot(
-      f, initialCondition, dt, numIterations, true, world_rank, world_size);
+  auto spectrum = IntegrateSystem45Mpi(
+      averagedEquationsPolarizationBasisSymmetryReducedParallel,
+      initialCondition, dt, numIterations, true);
 
   // — only rank 0 writes the CSV and traced file —
   if (world_rank == 0) {

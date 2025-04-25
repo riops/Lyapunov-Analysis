@@ -106,46 +106,6 @@ std::vector<long double> RungeKutta5(
   return result;
 }
 
-// // Placeholder for a function to adjust the step size based on the error
-// long double AdjustStepSize(long double dt, long double error,
-//                            long double tolerance) {
-//   // Simplified step size adjustment logic
-//   if (error > tolerance) {
-//     return dt * 0.5; // Decrease step size
-//   } else if (error < tolerance / 4.0) {
-//     return dt * 2.0; // Increase step size
-//   } else {
-//     return dt; // Keep the step size unchanged
-//   }
-// }
-//
-// // Assuming the existence of RungeKutta4 and RungeKutta5 functions
-// std::vector<std::vector<long double>> RungeKutta45(
-//     std::function<std::vector<long double>(const std::vector<long double> &)>
-//     f, const std::vector<long double> &point, long double dt) {
-//   long double tolerance = 1e-5; // Desired accuracy
-//   long double error = 0.0;
-//
-//   // Perform one step of RK4 and RK5
-//   std::vector<long double> rk4Result = RungeKutta4(f, point, dt);
-//   std::vector<long double> rk5Result = RungeKutta5(f, point, dt);
-//
-//   // Estimate the error
-//   for (size_t i = 0; i < point.size(); i++) {
-//     error += pow(rk4Result[i] - rk5Result[i], 2);
-//   }
-//   error = sqrt(error);
-//
-//   // Adjust the step size based on the error
-//   dt = AdjustStepSize(dt, error, tolerance);
-//
-//   std::vector<long double> dtReturn = {dt};
-//   std::vector<std::vector<long double>> result = {rk4Result, dtReturn};
-//
-//   return result; // This returns the RK4 result, but dt is adjusted for next
-//                  // step
-// }
-
 long double AdjustStepSize(long double dt, long double error, long double tol) {
   const long double safety = 0.9L;
   const long double order = 5.0L; // for RK45 use exponent 1/(order)
@@ -161,6 +121,7 @@ long double AdjustStepSize(long double dt, long double error, long double tol) {
   scale = std::max(0.1L, std::min(5.0L, scale));
   return dt * scale;
 }
+
 // Returns {y4, y5}: 4th‐order and 5th‐order estimates at point+dt
 std::vector<std::vector<long double>> RungeKutta45(
     std::function<std::vector<long double>(const std::vector<long double> &)> f,
@@ -383,6 +344,45 @@ std::vector<std::vector<long double>> IntegrateSystem45(
 
     std::vector<std::vector<long double>> rk45Result =
         RungeKutta45(f, currentPoint, dt);
+    currentPoint = rk45Result[0];
+    dt = rk45Result[1][0];
+    dtVector.push_back(dt + dtVector[i]);
+
+    auto end = Clock::now();
+    auto duration =
+        std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    std::cout << "Elapsed time: " << duration.count()
+              << ". Estimated Time: " << duration.count() * (numSteps - i)
+              << "ms\n";
+
+    if (allValues) {
+      result.push_back(currentPoint);
+    }
+  }
+  if (!allValues) {
+    result.push_back(currentPoint);
+  }
+
+  result.push_back(dtVector);
+  return result;
+}
+
+std::vector<std::vector<long double>> IntegrateSystem45Mpi(
+    std::function<std::vector<long double>(const std::vector<long double> &)> f,
+    const std::vector<long double> &point, long double dt, int numSteps,
+    bool allValues) {
+  int dimension = f(point).size();
+
+  std::vector<std::vector<long double>> result;
+  std::vector<long double> currentPoint = point;
+  std::vector<long double> dtVector = {dt};
+
+  for (int i = 0; i < numSteps; i++) {
+    using Clock = std::chrono::high_resolution_clock;
+    auto start = Clock::now();
+
+    std::vector<std::vector<long double>> rk45Result =
+        RungeKutta45Mpi(f, currentPoint, dt);
     currentPoint = rk45Result[0];
     dt = rk45Result[1][0];
     dtVector.push_back(dt + dtVector[i]);

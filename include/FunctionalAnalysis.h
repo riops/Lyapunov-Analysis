@@ -27,6 +27,10 @@ std::vector<std::vector<long double>> IntegrateSystem45(
     std::function<std::vector<long double>(const std::vector<long double> &)> f,
     const std::vector<long double> &point, long double dt, int numSteps,
     bool allValues);
+std::vector<std::vector<long double>> IntegrateSystem45Mpi(
+    std::function<std::vector<long double>(const std::vector<long double> &)> f,
+    const std::vector<long double> &point, long double dt, int numSteps,
+    bool allValues);
 
 std::vector<std::vector<long double>> IntegrateSystem4(
     std::function<std::vector<long double>(const std::vector<long double> &)> f,

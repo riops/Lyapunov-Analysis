@@ -5,7 +5,6 @@
 #include "../include/ClebschGordanCoefficients.h"
 #include <cmath>
 #include <cstdlib>
-#include <iostream>
 #include <mpi.h>
 #include <omp.h>
 #include <vector>
