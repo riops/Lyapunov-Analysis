@@ -11,6 +11,25 @@
 #include <mpi.h>
 #include <vector>
 
+// Fehlberg coefficients
+static constexpr long double a21 = 1.0L / 4;
+static constexpr long double a31 = 3.0L / 32, a32 = 9.0L / 32;
+static constexpr long double a41 = 1932.0L / 2197, a42 = -7200.0L / 2197,
+                             a43 = 7296.0L / 2197;
+static constexpr long double a51 = 439.0L / 216, a52 = -8.0L,
+                             a53 = 3680.0L / 513, a54 = -845.0L / 4104;
+static constexpr long double a61 = -8.0L / 27, a62 = 2.0L,
+                             a63 = -3544.0L / 2565, a64 = 1859.0L / 4104,
+                             a65 = -11.0L / 40;
+
+static constexpr long double b4_1 = 25.0L / 216, b4_3 = 1408.0L / 2565,
+                             b4_4 = 2197.0L / 4104, b4_5 = -1.0L / 5;
+static constexpr long double b5_1 = 16.0L / 135, b5_3 = 6656.0L / 12825,
+                             b5_4 = 28561.0L / 56430, b5_5 = -9.0L / 50,
+                             b5_6 = 2.0L / 55;
+
+static constexpr long double TOL = 1e-5L;
+
 // This function takes in a vector valued function and a point in the phase
 // space, and returns the jacobian matrix of the function at that point as a
 // vector.
@@ -207,125 +226,168 @@ std::vector<std::vector<long double>> RungeKutta45(
   return {res4, dtReturn};
 }
 
-// assume VectorAddition, ScalarVectorMultiplication and AdjustStepSize are
-// available
-
-std::vector<std::vector<long double>> RungeKutta45Mpi(
-    std::function<std::vector<long double>(const std::vector<long double> &)> f,
-    const std::vector<long double> &point, long double dt) {
+std::vector<std::vector<long double>>
+RungeKutta45Mpi(const std::function<std::vector<long double>(
+                    const std::vector<long double> &)> &f,
+                const std::vector<long double> &point_full, long double dt) {
   int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  const size_t M = point.size();
-  const long double tolerance = 1e-5L;
+  const size_t M = point_full.size();
+  // --- compute this rank's slice [off, off+local_n)
+  size_t base = M / size, rem = M % size;
+  size_t local_n = base + (rank < rem ? 1 : 0);
+  size_t off = rank * base + std::min<size_t>(rank, rem);
 
-  // Fehlberg coefficients (as in your original)
-  const long double a21 = 1.0L / 4;
-  const long double a31 = 3.0L / 32, a32 = 9.0L / 32;
-  const long double a41 = 1932.0L / 2197, a42 = -7200.0L / 2197,
-                    a43 = 7296.0L / 2197;
-  const long double a51 = 439.0L / 216, a52 = -8.0L, a53 = 3680.0L / 513,
-                    a54 = -845.0L / 4104;
-  const long double a61 = -8.0L / 27, a62 = 2.0L, a63 = -3544.0L / 2565,
-                    a64 = 1859.0L / 4104, a65 = -11.0L / 40;
-
-  const long double b4_1 = 25.0L / 216, b4_3 = 1408.0L / 2565,
-                    b4_4 = 2197.0L / 4104, b4_5 = -1.0L / 5;
-  const long double b5_1 = 16.0L / 135, b5_3 = 6656.0L / 12825,
-                    b5_4 = 28561.0L / 56430, b5_5 = -9.0L / 50,
-                    b5_6 = 2.0L / 55;
-
-  // storage for the six k‑vectors
-  std::vector<std::vector<long double>> k(6, std::vector<long double>(M));
-
-  // helper to compute and broadcast stage i
-  auto do_stage = [&](int stage) {
-    int root = (stage - 1) % size; // round‑robin assignment
-    std::vector<long double> y(M);
-
-    // build the stage input y_i = point + dt * sum_j a_{ij} k_j
-    switch (stage) {
-    case 1:
-      y = point;
-      break;
-    case 2:
-      y = VectorAddition(point, ScalarVectorMultiplication(dt * a21, k[0]));
-      break;
-    case 3: {
-      auto t = VectorAddition(ScalarVectorMultiplication(dt * a31, k[0]),
-                              ScalarVectorMultiplication(dt * a32, k[1]));
-      y = VectorAddition(point, t);
-    } break;
-    case 4: {
-      auto t = VectorAddition(
-          ScalarVectorMultiplication(dt * a41, k[0]),
-          VectorAddition(ScalarVectorMultiplication(dt * a42, k[1]),
-                         ScalarVectorMultiplication(dt * a43, k[2])));
-      y = VectorAddition(point, t);
-    } break;
-    case 5: {
-      auto t = VectorAddition(
-          ScalarVectorMultiplication(dt * a51, k[0]),
-          VectorAddition(
-              ScalarVectorMultiplication(dt * a52, k[1]),
-              VectorAddition(ScalarVectorMultiplication(dt * a53, k[2]),
-                             ScalarVectorMultiplication(dt * a54, k[3]))));
-      y = VectorAddition(point, t);
-    } break;
-    case 6: {
-      auto t = VectorAddition(
-          ScalarVectorMultiplication(dt * a61, k[0]),
-          VectorAddition(
-              ScalarVectorMultiplication(dt * a62, k[1]),
-              VectorAddition(
-                  ScalarVectorMultiplication(dt * a63, k[2]),
-                  VectorAddition(ScalarVectorMultiplication(dt * a64, k[3]),
-                                 ScalarVectorMultiplication(dt * a65, k[4])))));
-      y = VectorAddition(point, t);
-    } break;
-    }
-
-    // only the assigned root computes f(y)
-    if (rank == root) {
-      k[stage - 1] = f(y);
-    }
-    // then broadcast k[stage-1] from that root to all
-    MPI_Bcast(k[stage - 1].data(), M, MPI_LONG_DOUBLE, root, MPI_COMM_WORLD);
-  };
-
-  // do all six stages
-  for (int i = 1; i <= 6; ++i) {
-    do_stage(i);
+  // --- static buffers, allocated once
+  static std::vector<long double> temp_full, deriv_full;
+  static std::vector<long double> temp_loc, deriv_loc;
+  static std::vector<std::vector<long double>> k_loc(6);
+  static bool first = true;
+  if (first) {
+    temp_full.resize(M);
+    deriv_full.resize(M);
+    temp_loc.resize(local_n);
+    deriv_loc.resize(local_n);
+    for (int s = 0; s < 6; ++s)
+      k_loc[s].resize(local_n);
+    first = false;
   }
 
-  // now rank 0 assembles the 4th‐order result and new dt
-  std::vector<long double> res4(M), dt_ret(1);
+  // --- for each of the 6 stages:
+  for (int stage = 0; stage < 6; ++stage) {
+// build this rank's slice of the stage-input temp_full
+#pragma omp parallel for
+    for (size_t i = off; i < off + local_n; ++i) {
+      long double acc = 0;
+      switch (stage) {
+      case 0:
+        temp_full[i] = point_full[i];
+        continue;
+      case 1:
+        acc = a21 * k_loc[0][i - off];
+        break;
+      case 2:
+        acc = a31 * k_loc[0][i - off] + a32 * k_loc[1][i - off];
+        break;
+      case 3:
+        acc = a41 * k_loc[0][i - off] + a42 * k_loc[1][i - off] +
+              a43 * k_loc[2][i - off];
+        break;
+      case 4:
+        acc = a51 * k_loc[0][i - off] + a52 * k_loc[1][i - off] +
+              a53 * k_loc[2][i - off] + a54 * k_loc[3][i - off];
+        break;
+      case 5:
+        acc = a61 * k_loc[0][i - off] + a62 * k_loc[1][i - off] +
+              a63 * k_loc[2][i - off] + a64 * k_loc[3][i - off] +
+              a65 * k_loc[4][i - off];
+        break;
+      }
+      temp_full[i] = point_full[i] + dt * acc;
+    }
+
+    // gather the full temp_full on every rank
+    MPI_Allgather(
+        /* sendbuf */ temp_full.data() + off, local_n, MPI_LONG_DOUBLE,
+        /* recvbuf */ temp_full.data(), base + (rem > 0), MPI_LONG_DOUBLE,
+        MPI_COMM_WORLD);
+
+    // now compute the full derivative at this stage
+    deriv_full = f(temp_full);
+
+// extract this rank's slice
+#pragma omp parallel for
+    for (size_t i = 0; i < local_n; ++i)
+      deriv_loc[i] = deriv_full[off + i];
+
+    // reduce+scatter so that k_loc[stage] holds exactly this rank's slice of
+    // the global k-vector
+    MPI_Reduce_scatter_block(
+        /* sendbuf */ deriv_loc.data(),
+        /* recvbuf */ k_loc[stage].data(),
+        /* recvcount */ local_n, MPI_LONG_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  }
+
+  // --- now each rank has k_loc[0..5] for its slice; compute local res4, res5,
+  // and local err²
+  std::vector<long double> res4_loc(local_n), res5_loc(local_n);
+  long double err2_loc = 0;
+#pragma omp parallel for reduction(+ : err2_loc)
+  for (size_t i = 0; i < local_n; ++i) {
+    long double i_pt = point_full[off + i];
+    res4_loc[i] = i_pt + dt * (b4_1 * k_loc[0][i] + b4_3 * k_loc[2][i] +
+                               b4_4 * k_loc[3][i] + b4_5 * k_loc[4][i]);
+    long double r5 = i_pt + dt * (b5_1 * k_loc[0][i] + b5_3 * k_loc[2][i] +
+                                  b5_4 * k_loc[3][i] + b5_5 * k_loc[4][i] +
+                                  b5_6 * k_loc[5][i]);
+    err2_loc += (r5 - res4_loc[i]) * (r5 - res4_loc[i]);
+    res5_loc[i] = r5;
+  }
+
+  // --- get global error² and compute new dt on rank 0
+  long double err2_glob = 0;
+  MPI_Allreduce(&err2_loc, &err2_glob, 1, MPI_LONG_DOUBLE, MPI_SUM,
+                MPI_COMM_WORLD);
+  long double dt_new = 0;
   if (rank == 0) {
-    // compute 4th‐ and 5th‐order estimates
-    std::vector<long double> res5(M);
-    for (size_t i = 0; i < M; ++i) {
-      res4[i] = point[i] + dt * (b4_1 * k[0][i] + b4_3 * k[2][i] +
-                                 b4_4 * k[3][i] + b4_5 * k[4][i]);
-      res5[i] =
-          point[i] + dt * (b5_1 * k[0][i] + b5_3 * k[2][i] + b5_4 * k[3][i] +
-                           b5_5 * k[4][i] + b5_6 * k[5][i]);
+    dt_new = AdjustStepSize(dt, std::sqrt(err2_glob), TOL);
+  }
+  // broadcast the new dt
+  MPI_Bcast(&dt_new, 1, MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
+
+  // --- assemble the full res4 into temp_full (only for rank 0 if
+  // allValues=false)
+  MPI_Allgather(
+      /* sendbuf */ res4_loc.data(), local_n, MPI_LONG_DOUBLE,
+      /* recvbuf */ temp_full.data(), base + (rem > 0), MPI_LONG_DOUBLE,
+      MPI_COMM_WORLD);
+
+  // return a two‐row matrix: [res4, dt_hist]
+  return {temp_full, std::vector<long double>{dt_new}};
+}
+
+// Then IntegrateSystem45Mpi can call the above step in a loop, timing only on
+// rank 0:
+std::vector<std::vector<long double>>
+IntegrateSystem45Mpi(const std::function<std::vector<long double>(
+                         const std::vector<long double> &)> &f,
+                     const std::vector<long double> &init, long double dt,
+                     int numSteps, bool allValues) {
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+  std::vector<long double> current = init;
+  std::vector<long double> dt_hist = {dt};
+  std::vector<std::vector<long double>> result;
+  result.reserve(allValues ? numSteps + 2 : 2);
+
+  for (int i = 0; i < numSteps; ++i) {
+    auto t0 = std::chrono::high_resolution_clock::now();
+
+    auto step = RungeKutta45Mpi(f, current, dt);
+    current = std::move(step[0]);
+    dt = step[1][0];
+    dt_hist.push_back(dt_hist.back() + dt);
+
+    auto t1 = std::chrono::high_resolution_clock::now();
+    if (rank == 0) {
+      auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0)
+                    .count();
+      std::cout << "Step " << i << " took " << ms << " ms\n";
     }
-    // error estimate and adjust dt
-    long double err2 = 0;
-    for (size_t i = 0; i < M; ++i) {
-      long double d = res5[i] - res4[i];
-      err2 += d * d;
-    }
-    long double err = std::sqrt(err2);
-    dt_ret[0] = AdjustStepSize(dt, err, tolerance);
+
+    if (allValues && rank == 0)
+      result.push_back(current);
   }
 
-  // broadcast the final res4 and new dt back to everyone
-  MPI_Bcast(res4.data(), M, MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
-  MPI_Bcast(dt_ret.data(), 1, MPI_LONG_DOUBLE, 0, MPI_COMM_WORLD);
-
-  return {res4, dt_ret};
+  if (rank == 0) {
+    if (!allValues)
+      result.push_back(current);
+    result.push_back(dt_hist);
+  }
+  return result;
 }
 
 std::vector<std::vector<long double>> IntegrateSystem45(
@@ -344,45 +406,6 @@ std::vector<std::vector<long double>> IntegrateSystem45(
 
     std::vector<std::vector<long double>> rk45Result =
         RungeKutta45(f, currentPoint, dt);
-    currentPoint = rk45Result[0];
-    dt = rk45Result[1][0];
-    dtVector.push_back(dt + dtVector[i]);
-
-    auto end = Clock::now();
-    auto duration =
-        std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << "Elapsed time: " << duration.count()
-              << ". Estimated Time: " << duration.count() * (numSteps - i)
-              << "ms\n";
-
-    if (allValues) {
-      result.push_back(currentPoint);
-    }
-  }
-  if (!allValues) {
-    result.push_back(currentPoint);
-  }
-
-  result.push_back(dtVector);
-  return result;
-}
-
-std::vector<std::vector<long double>> IntegrateSystem45Mpi(
-    std::function<std::vector<long double>(const std::vector<long double> &)> f,
-    const std::vector<long double> &point, long double dt, int numSteps,
-    bool allValues) {
-  int dimension = f(point).size();
-
-  std::vector<std::vector<long double>> result;
-  std::vector<long double> currentPoint = point;
-  std::vector<long double> dtVector = {dt};
-
-  for (int i = 0; i < numSteps; i++) {
-    using Clock = std::chrono::high_resolution_clock;
-    auto start = Clock::now();
-
-    std::vector<std::vector<long double>> rk45Result =
-        RungeKutta45Mpi(f, currentPoint, dt);
     currentPoint = rk45Result[0];
     dt = rk45Result[1][0];
     dtVector.push_back(dt + dtVector[i]);
