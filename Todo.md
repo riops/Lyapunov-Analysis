@@ -1,0 +1,7 @@
+- [x] $\mu_1$ = 0, or increase $\mu_2$. Or $\mu_1 ~ 1$ and $\mu_2 ~ 10$.
+- [x] Add graphing for trace.
+- [x] Add ability to customize the plot, axes titles. graphing variable name.
+- [x] Set the $l=0$
+- [x] Potential term min.
+- [x] Run the simulation with the solutions from the consistency equation with varying energy values.
+- [x] Check how the equal partitioning the energies to real and imaginary parts change the distrubution of the solutions.

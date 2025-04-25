@@ -1,0 +1,9 @@
+# builds
+builds/
+
+# IDE files
+.vscode/
+
+# Slurm files
+run_lyapunov_mpi.slurm
+
