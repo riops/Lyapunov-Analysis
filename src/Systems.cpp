@@ -59,7 +59,10 @@ averagedEquationsPolarizationBasisSymmetryReducedParallel(
 
   std::vector<long double> result(3 * CovMax);
 
-// Equations for mean X and P (as before)
+  // TODO: Create a lookup table for HFunction and if the value is zero than
+  // ignore the summation.
+  // TODO: Also add the fact that only \delta_{l_1 l_2} \delta_{m_1 m_2}
+  // \delta_{ij} \delta_{ae} This should increase the speed 4N^2
 #pragma omp parallel for collapse(9)
   for (int lm1_int = 0; lm1_int < N * N; lm1_int++) {
     for (int i_int = 1; i_int <= 2; i_int++) {
@@ -350,6 +353,8 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelMpi(
   return global_result;
 }
 
+// TODO: We have to add the different distribution of real and imaginary parts.
+// TODO: Also add the ansatz identifier.
 std::vector<long double>
 GenerateInitialConditionReduced(const std::vector<long double> &sigmaXX,
                                 const std::vector<long double> &sigmaPP,

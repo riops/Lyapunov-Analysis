@@ -12,6 +12,7 @@
 #include <vector>
 
 int main(int argc, char **argv) {
+  // TODO: Add the Lyapunov exponent code.
   MPI_Init(&argc, &argv);
   int world_rank, world_size;
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
