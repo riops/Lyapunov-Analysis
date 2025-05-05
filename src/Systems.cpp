@@ -204,6 +204,150 @@ averagedEquationsPolarizationBasisSymmetryReducedParallel(
 }
 
 std::vector<long double>
+averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
+    const std::vector<long double> &allVectors,
+    const std::vector<std::vector<double>> &H) {
+  long double mu = 0.25;    // Previous value was 1.0
+  long double lambda = 5.0; // Previous value was 10.0
+  long double R = 2.0;
+
+  int N = 2;
+  int Imax = 4 * (N * N);   // Number of averaged variables
+  int CovMax = Imax * Imax; // Number of covariance terms
+  // int currentIndex = 0;
+
+  // Extract covariance vectors (centered)
+  std::vector<long double> XX(allVectors.begin(), allVectors.begin() + CovMax);
+  std::vector<long double> PP(allVectors.begin() + CovMax,
+                              allVectors.begin() + 2 * CovMax);
+  std::vector<long double> XP(allVectors.begin() + 2 * CovMax,
+                              allVectors.begin() + 3 * CovMax);
+
+  std::vector<long double> result(3 * CovMax);
+
+#pragma omp parallel for collapse(5)
+  for (int lm1_int = 0; lm1_int < N * N; lm1_int++) {
+    for (int i_int = 1; i_int <= 2; i_int++) {
+      for (int a_int = 1; a_int <= 2; a_int++) {
+        for (int lm2_int = 0; lm2_int < N * N; lm2_int++) {
+          for (int h_index = 0; h_index < H.size(); h_index++) {
+            for (double k = 1; k <= 2; k++) {
+              for (double b = 1; b <= 2; b++) {
+                for (double c = 1; c <= 2; c++) {
+                  for (double d = 1; d <= 2; d++) {
+                    int l1_int = static_cast<int>(sqrt(lm1_int));
+                    int m1_int = lm1_int - (l1_int * l1_int + l1_int);
+                    double l1 = static_cast<double>(l1_int);
+                    double m1 = static_cast<double>(m1_int);
+                    double i = static_cast<double>(i_int);
+                    double a = static_cast<double>(a_int);
+
+                    int l2_int = static_cast<int>(sqrt(lm2_int));
+                    int m2_int = lm2_int - (l2_int * l2_int + l2_int);
+                    double l2 = static_cast<double>(l2_int);
+                    double m2 = static_cast<double>(m2_int);
+                    double j = static_cast<double>(i_int);
+                    double e = static_cast<double>(a_int);
+
+                    double l3 = H[h_index][0];
+                    double m3 = H[h_index][1];
+                    double l4 = H[h_index][2];
+                    double m4 = H[h_index][3];
+                    double l5 = H[h_index][4];
+                    double m5 = H[h_index][5];
+                    double l1Orl2 = H[h_index][6];
+                    double m1Orm2 = H[h_index][6];
+
+                    int idx_ai_l1m1 = indexX(a, i, l1, m1, N);
+                    int idx_bk_l5m5 = indexX(b, k, l5, m5, N);
+                    int idx_ck_di_l3m3_l4m4 =
+                        indexXX(c, k, l3, m3, d, i, l4, m4, N);
+                    int idx_ck_l3m3 = indexX(c, k, l3, m3, N);
+                    int idx_bk_di_l5m5_l4m4 =
+                        indexXX(b, k, l5, m5, d, i, l4, m4, N);
+                    int idx_di_l4m4 = indexX(d, i, l4, m4, N);
+                    int idx_ck_bk_l3m3_l5m5 =
+                        indexXX(c, k, l3, m3, b, k, l5, m5, N);
+                    // Compute the dot product of the XX, PP and
+                    // XP terms.
+                    int idx_ai_ej_l1m1_l2m2 =
+                        indexXX(a, i, l1, m1, e, j, l2, m2, N);
+                    // First term of the XXdot term
+                    result[idx_ai_ej_l1m1_l2m2] = XP[idx_ai_ej_l1m1_l2m2];
+                    int idx_bk_ej_l5m5_l2m2 =
+                        indexXX(b, k, l5, m5, e, j, l2, m2, N);
+                    int idx_ck_ej_l3m3_l2m2 =
+                        indexXX(c, k, l3, m3, e, j, l2, m2, N);
+                    int idx_di_ej_l4m4_l2m2 =
+                        indexXX(d, i, l4, m4, e, j, l2, m2, N);
+                    // {i, a, l1, m1} <-> {j, e, l2, m2}
+                    int idx_ej_ai_l2m2_l1m1 =
+                        indexXX(e, j, l2, m2, a, i, l1, m1, N);
+                    int idx_bk_ai_l5m5_l1m1 =
+                        indexXX(b, k, l5, m5, a, i, l1, m1, N);
+                    int idx_ck_dj_l3m3_l4m4 =
+                        indexXX(c, k, l3, m3, d, j, l4, m4, N);
+                    int idx_ck_ai_l3m3_l1m1 =
+                        indexXX(c, k, l3, m3, a, i, l1, m1, N);
+                    int idx_bk_dj_l5m5_l4m4 =
+                        indexXX(b, k, l5, m5, d, j, l4, m4, N);
+                    int idx_dj_ai_l4m4_l1m1 =
+                        indexXX(d, j, l4, m4, a, i, l1, m1, N);
+                    int idx_dj_l4m4 = indexX(d, j, l4, m4, N);
+
+                    long double ppDotSubSum1 = 0;
+                    long double ppDotSubSum2 = 0;
+                    long double xpDotSubSum = 0;
+
+                    if (l1Orl2 == l1 && m1Orm2 == m1) {
+
+                      ppDotSubSum1 =
+                          HFunction(l3, l4, l5, l1, m3, m4, m5, m1, N) *
+                          G(a, b, c, d) *
+                          (XP[idx_bk_ej_l5m5_l2m2] * XX[idx_ck_di_l3m3_l4m4] +
+                           XP[idx_ck_ej_l3m3_l2m2] * XX[idx_bk_di_l5m5_l4m4] +
+                           XP[idx_di_ej_l4m4_l2m2] * XX[idx_ck_bk_l3m3_l5m5]);
+
+                      // Compute the dot product of the XP term.
+                      xpDotSubSum =
+                          HFunction(l3, l4, l5, l1, m3, m4, m5, m1, N) *
+                          G(a, b, c, d) *
+                          (XX[idx_bk_ej_l5m5_l2m2] * XX[idx_ck_di_l3m3_l4m4] +
+                           XX[idx_ck_ej_l3m3_l2m2] * XX[idx_bk_di_l5m5_l4m4] +
+                           XX[idx_di_ej_l4m4_l2m2] * XX[idx_ck_bk_l3m3_l5m5]);
+
+                    } else if (l1Orl2 == l2 && m1Orm2 == m2) {
+                      ppDotSubSum2 =
+                          HFunction(l3, l4, l5, l2, m3, m4, m5, m2, N) *
+                          G(e, b, c, d) *
+                          (XP[idx_bk_ai_l5m5_l1m1] * XX[idx_ck_dj_l3m3_l4m4] +
+                           XP[idx_ck_ai_l3m3_l1m1] * XX[idx_bk_dj_l5m5_l4m4] +
+                           XP[idx_dj_ai_l4m4_l1m1] * XX[idx_ck_bk_l3m3_l5m5]);
+                    }
+
+                    result[CovMax + idx_ai_ej_l1m1_l2m2] =
+                        -((mu + l1 * (l1 + 1) / std::pow(R, 2)) *
+                              XP[idx_ai_ej_l1m1_l2m2] -
+                          lambda * (ppDotSubSum1 + ppDotSubSum2) / N);
+
+                    result[2 * CovMax + idx_ai_ej_l1m1_l2m2] =
+                        -((mu + l1 * (l1 + 1) / std::pow(R, 2)) *
+                              XX[idx_ai_ej_l1m1_l2m2] -
+                          lambda * xpDotSubSum / N) +
+                        PP[idx_ai_ej_l1m1_l2m2];
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return result;
+}
+
+std::vector<long double>
 averagedEquationsPolarizationBasisSymmetryReducedParallelMpi(
     const std::vector<long double> &allVectors, int world_rank,
     int world_size) {

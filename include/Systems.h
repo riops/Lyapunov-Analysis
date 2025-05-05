@@ -19,6 +19,11 @@ averagedEquationsPolarizationBasisSymmetryReducedParallel(
     const std::vector<long double> &allVectors);
 
 std::vector<long double>
+averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
+    const std::vector<long double> &allVectors,
+    const std::vector<std::vector<double>> &H);
+
+std::vector<long double>
 averagedEquationsPolarizationBasisSymmetryReducedParallelMpi(
     const std::vector<long double> &allVectors, int world_rank, int world_size);
 

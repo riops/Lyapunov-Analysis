@@ -9,3 +9,6 @@ run_lyapunov_mpi.slurm
 
 #Todo.md files
 ./Todo.md
+
+#tests
+test_*.cpp

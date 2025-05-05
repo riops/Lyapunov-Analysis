@@ -1,10 +1,10 @@
 #include "../include/Analysis.h"
 #include "../include/FunctionalAnalysis.h" // for IntegrateSystem45
-#include "../include/Systems.h"            // for averagedEquations…Parallel
+#include "../include/HTableLoader.h"
+#include "../include/Systems.h" // for averagedEquations…Parallel
 #include <chrono>
 #include <ctime>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <mpi.h>
 #include <omp.h>
@@ -12,7 +12,6 @@
 #include <vector>
 
 int main(int argc, char **argv) {
-  // TODO: Add the Lyapunov exponent code.
   MPI_Init(&argc, &argv);
   int world_rank, world_size;
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
@@ -40,6 +39,7 @@ int main(int argc, char **argv) {
   long double lambda = 0.25;
   long double mu = 5.0;
   long double R = 2.0;
+  auto HTable = LoadHTable(matrixDimension);
   std::vector<std::vector<long double>> allICs(world_size);
   for (int r = 0; r < world_size; ++r) {
     allICs[r] = GenerateInitialConditionReduced(1, matrixDimension,
@@ -54,12 +54,17 @@ int main(int argc, char **argv) {
     std::cout << "Running " << world_size << " trajectories in parallel...\n";
   }
 
+  auto AveragedFunction = [&HTable](const std::vector<long double> &allVectors)
+      -> std::vector<long double> {
+    return averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
+        allVectors, HTable);
+  };
+
   // 4) Integrate serial-RK45 with OpenMP RHS
   MPI_Barrier(MPI_COMM_WORLD);
   double t0 = MPI_Wtime();
-  auto traj = IntegrateSystem45(
-      averagedEquationsPolarizationBasisSymmetryReducedParallel, myIC, dt,
-      numSteps, /*allValues=*/true);
+  auto traj = IntegrateSystem45(AveragedFunction, myIC, dt, numSteps,
+                                /*allValues=*/true);
   MPI_Barrier(MPI_COMM_WORLD);
   double t1 = MPI_Wtime();
   if (world_rank == 0) {
