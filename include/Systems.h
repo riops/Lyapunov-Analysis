@@ -22,8 +22,26 @@ std::vector<long double>
 averagedEquationsPolarizationBasisSymmetryReducedParallelMpi(
     const std::vector<long double> &allVectors, int world_rank, int world_size);
 
+std::vector<long double> GenerateSigmaAnsatzI(long double E, long double lambda,
+                                              long double R, long double mu,
+                                              int N);
+
 std::vector<long double>
-GenerateInitialConditionReduced(const std::vector<long double> &sigmaXX,
-                                const std::vector<long double> &sigmaPP, int N);
+GenerateSigmaAnsatzII(long double E, long double lambda, long double R, int N);
+
+std::vector<long double> GenerateInitialConditionAnsatzI(long double E, int N,
+                                                         long double R,
+                                                         long double mu,
+                                                         long double lambda);
+
+std::vector<long double> GenerateInitialConditionAnsatzII(long double E, int N,
+                                                          long double R,
+                                                          long double lambda);
+
+std::vector<long double> GenerateInitialConditionReduced(int ansatz, int N,
+                                                         long double E,
+                                                         long double lambda,
+                                                         long double R,
+                                                         long double mu);
 
 #endif // SYSTEMS_H

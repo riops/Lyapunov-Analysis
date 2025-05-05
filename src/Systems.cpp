@@ -5,8 +5,10 @@
 #include "../include/ClebschGordanCoefficients.h"
 #include <cmath>
 #include <cstdlib>
+#include <functional>
 #include <mpi.h>
 #include <omp.h>
+#include <random>
 #include <vector>
 
 // Functions to compute indices
@@ -41,8 +43,8 @@ int indexXXInt(int a1, int i1, int l1, int m1, int a2, int i2, int l2, int m2,
 std::vector<long double>
 averagedEquationsPolarizationBasisSymmetryReducedParallel(
     const std::vector<long double> &allVectors) {
-  long double mu1 = 1.0; // Previous value was 1.0
-  long double mu2 = 5.0; // Previous value was 10.0
+  long double mu = 0.25;    // Previous value was 1.0
+  long double lambda = 5.0; // Previous value was 10.0
   long double R = 2.0;
 
   int N = 2;
@@ -61,8 +63,6 @@ averagedEquationsPolarizationBasisSymmetryReducedParallel(
 
   // TODO: Create a lookup table for HFunction and if the value is zero than
   // ignore the summation.
-  // TODO: Also add the fact that only \delta_{l_1 l_2} \delta_{m_1 m_2}
-  // \delta_{ij} \delta_{ae} This should increase the speed 4N^2
 #pragma omp parallel for collapse(9)
   for (int lm1_int = 0; lm1_int < N * N; lm1_int++) {
     for (int i_int = 1; i_int <= 2; i_int++) {
@@ -167,9 +167,9 @@ averagedEquationsPolarizationBasisSymmetryReducedParallel(
                                      XX[idx_ck_bk_l3m3_l5m5]);
 
                             result[CovMax + idx_ai_ej_l1m1_l2m2] =
-                                -((mu1 + l1 * (l1 + 1) / std::pow(R, 2)) *
+                                -((mu + l1 * (l1 + 1) / std::pow(R, 2)) *
                                       XP[idx_ai_ej_l1m1_l2m2] -
-                                  mu2 * (ppDotSubSum1 + ppDotSubSum2) / N);
+                                  lambda * (ppDotSubSum1 + ppDotSubSum2) / N);
 
                             // Compute the dot product of the XP term.
                             long double xpDotSubSum =
@@ -183,9 +183,9 @@ averagedEquationsPolarizationBasisSymmetryReducedParallel(
                                      XX[idx_ck_bk_l3m3_l5m5]);
 
                             result[2 * CovMax + idx_ai_ej_l1m1_l2m2] =
-                                -((mu1 + l1 * (l1 + 1) / std::pow(R, 2)) *
+                                -((mu + l1 * (l1 + 1) / std::pow(R, 2)) *
                                       XX[idx_ai_ej_l1m1_l2m2] -
-                                  mu2 * xpDotSubSum / N) +
+                                  lambda * xpDotSubSum / N) +
                                 PP[idx_ai_ej_l1m1_l2m2];
                           }
                         }
@@ -208,8 +208,8 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelMpi(
     const std::vector<long double> &allVectors, int world_rank,
     int world_size) {
 
-  long double mu1 = 1.0;
-  long double mu2 = 5.0;
+  long double mu = 1.0;
+  long double lambda = 5.0;
   long double R = 2.0;
   int N = 2;
   int Imax = 4 * (N * N);
@@ -318,9 +318,9 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelMpi(
                              XP[idx_dj_ai_l4m4_l1m1] * XX[idx_ck_bk_l3m3_l5m5]);
 
                         local_result[CovMax + idx_ai_ej_l1m1_l2m2] =
-                            -((mu1 + l1 * (l1 + 1) / (R * R)) *
+                            -((mu + l1 * (l1 + 1) / (R * R)) *
                                   XP[idx_ai_ej_l1m1_l2m2] -
-                              mu2 * (ppDotSubSum1 + ppDotSubSum2) / N);
+                              lambda * (ppDotSubSum1 + ppDotSubSum2) / N);
 
                         long double xpDotSubSum =
                             HFunction(l3, l4, l5, l1, m3, m4, m5, m1, N) *
@@ -330,9 +330,9 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelMpi(
                              XX[idx_di_ej_l4m4_l2m2] * XX[idx_ck_bk_l3m3_l5m5]);
 
                         local_result[2 * CovMax + idx_ai_ej_l1m1_l2m2] =
-                            -((mu1 + l1 * (l1 + 1) / (R * R)) *
+                            -((mu + l1 * (l1 + 1) / (R * R)) *
                                   XX[idx_ai_ej_l1m1_l2m2] -
-                              mu2 * xpDotSubSum / N) +
+                              lambda * xpDotSubSum / N) +
                             PP[idx_ai_ej_l1m1_l2m2];
                       }
                     }
@@ -353,16 +353,43 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelMpi(
   return global_result;
 }
 
-// TODO: We have to add the different distribution of real and imaginary parts.
-// TODO: Also add the ansatz identifier.
+std::vector<long double> GenerateSigmaAnsatzI(long double E, long double lambda,
+                                              long double R, long double mu,
+                                              int N) {
+  long double sigmaXX =
+      -((N * N - 1 + 2 * mu * mu * R * R) +
+        std::sqrt(std::pow((N * N - 1 + 2 * mu * mu * R * R), 2) +
+                  12 * lambda * E * R * R * R * R)) /
+      (6 * lambda * N * N * R * R * R);
+  long double sigmaPP = E * R / (N * N) -
+                        lambda * N * N * R * R * R * sigmaXX * sigmaXX -
+                        (N * N - 1 + 2 * mu * mu * R * R) * sigmaXX / 2;
+  std::vector<long double> result = {sigmaXX, sigmaPP};
+  return result;
+}
+
 std::vector<long double>
-GenerateInitialConditionReduced(const std::vector<long double> &sigmaXX,
-                                const std::vector<long double> &sigmaPP,
-                                int N) {
+GenerateSigmaAnsatzII(long double E, long double lambda, long double R, int N) {
+  long double sigmaXX =
+      -((4 * N * N - 1) + std::sqrt(std::pow((4 * N * N - 1), 2) +
+                                    864 * lambda * E * R * R * R * R)) /
+      (144 * lambda * N * R * R * R);
+  long double sigmaPP = E * R / (2 * N) - (4 * N * N - 1) * sigmaXX / 12 -
+                        4 * N * R * R * R * lambda * sigmaXX * sigmaXX;
+  std::vector<long double> result = {sigmaXX, sigmaPP};
+  return result;
+}
+
+std::vector<long double> GenerateInitialConditionAnsatzI(long double E, int N,
+                                                         long double R,
+                                                         long double mu,
+                                                         long double lambda) {
   std::vector<long double> result(48 * N * N * N * N);
   int Imax = 4 * (N * N);   // Number of averaged variables
   int CovMax = Imax * Imax; // Number of covariance terms
-  long double alpha = 0.3;
+  std::vector<long double> sigmas = GenerateSigmaAnsatzI(E, lambda, R, mu, N);
+  long double sigmaXX = sigmas[0];
+  long double sigmaPP = sigmas[1];
   for (double l1 = 0; l1 < N; l1++) {
     for (double m1 = -l1; m1 <= l1; m1++) {
       for (double a = 1; a <= 2; a++) {
@@ -375,16 +402,132 @@ GenerateInitialConditionReduced(const std::vector<long double> &sigmaXX,
                   int idx_ai_ej_l1m1_l2m2 =
                       indexXX(a, i, l1, m1, e, j, l2, m2, N);
                   result[idx_ai_ej_l1m1_l2m2] =
-                      sigmaXX[l1] * Delta(l1, l2) * Delta(m1, m2) *
-                      Delta(i, j) * Delta(a, e) * std::abs((a - 1) - alpha);
+                      R * sigmaXX * Delta(l1, l2) * Delta(i, j) * Delta(a, e) *
+                      (Delta(m1, m2) +
+                       std::pow(-1, m2 + a + 1) * Delta(m1, -m2));
                   result[CovMax + idx_ai_ej_l1m1_l2m2] =
-                      sigmaPP[l1] * Delta(l1, l2) * Delta(m1, m2) *
-                      Delta(i, j) * Delta(a, e) * std::abs((a - 1) - alpha);
+                      sigmaPP * Delta(l1, l2) * Delta(i, j) * Delta(a, e) *
+                      (Delta(m1, m2) +
+                       std::pow(-1, m2 + a + 1) * Delta(m1, -m2)) /
+                      R;
                   result[2 * CovMax + idx_ai_ej_l1m1_l2m2] = 0;
                 }
               }
             }
           }
+        }
+      }
+    }
+  }
+  return result;
+}
+
+std::vector<long double> GenerateInitialConditionAnsatzII(long double E, int N,
+                                                          long double R,
+                                                          long double lambda) {
+  std::vector<long double> result(48 * N * N * N * N);
+  int Imax = 4 * (N * N);   // Number of averaged variables
+  int CovMax = Imax * Imax; // Number of covariance terms
+  std::vector<long double> sigmas = GenerateSigmaAnsatzII(E, lambda, R, N);
+  long double sigmaXX = sigmas[0];
+  long double sigmaPP = sigmas[1];
+  for (double l1 = 0; l1 < N; l1++) {
+    for (double m1 = -l1; m1 <= l1; m1++) {
+      for (double a = 1; a <= 2; a++) {
+        for (double i = 1; i <= 2; i++) {
+          for (double l2 = 0; l2 < N; l2++) {
+            for (double m2 = -l2; m2 <= l2; m2++) {
+              for (double e = 1; e <= 2; e++) {
+                for (double j = 1; j <= 2; j++) {
+                  long double sigmaXXFactor = R * sigmaXX / (l1 + 0.5);
+                  long double sigmaPPFactor = sigmaPP * (l1 + 0.5) / R;
+                  int idx_ai_l1m1 = indexX(a, i, l1, m1, N);
+                  int idx_ai_ej_l1m1_l2m2 =
+                      indexXX(a, i, l1, m1, e, j, l2, m2, N);
+                  result[idx_ai_ej_l1m1_l2m2] =
+                      sigmaXXFactor * Delta(l1, l2) * Delta(i, j) *
+                      Delta(a, e) *
+                      (Delta(m1, m2) +
+                       std::pow(-1, m2 + a + 1) * Delta(m1, -m2));
+                  result[CovMax + idx_ai_ej_l1m1_l2m2] =
+                      sigmaPPFactor * Delta(l1, l2) * Delta(i, j) *
+                      Delta(a, e) *
+                      (Delta(m1, m2) +
+                       std::pow(-1, m2 + a + 1) * Delta(m1, -m2));
+                  result[2 * CovMax + idx_ai_ej_l1m1_l2m2] = 0;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return result;
+}
+
+std::vector<long double> GenerateInitialConditionReduced(int ansatz, int N,
+                                                         long double E,
+                                                         long double lambda,
+                                                         long double R,
+                                                         long double mu) {
+  std::vector<long double> result;
+  if (ansatz == 1) {
+    result = GenerateInitialConditionAnsatzI(E, N, R, mu, lambda);
+  } else if (ansatz == 2) {
+    result = GenerateInitialConditionAnsatzII(E, N, R, lambda);
+  } else {
+    result = {0};
+  }
+  return result;
+}
+
+long double Sign(double m) {
+  if (m < 0) {
+    return -1.0;
+  } else if (m == 0) {
+    return 0.0;
+  } else {
+    return 1.0;
+  }
+}
+
+long double R(double l, double m) {
+  static constexpr long double tolerance = 1e-4L;
+
+  // 1) Turn (l,m) into a deterministic 64-bit seed
+  auto h1 = std::hash<double>{}(l);
+  auto h2 = std::hash<double>{}(m);
+  uint64_t seed = h1 ^ (h2 + 0x9e3779b97f4a7c15ULL + (h1 << 6) + (h1 >> 2));
+  // (the magic constant + bit-mix helps spread the bits)
+
+  // 2) Make a generator seeded by that value
+  std::mt19937_64 gen(seed);
+
+  // 3) Draw uniformly in [0, tolerance)
+  std::uniform_real_distribution<long double> dist(0.0L, tolerance);
+  return dist(gen);
+}
+
+std::vector<long double>
+ModifyInitialCondition(const std::vector<long double> &initialCondition,
+                       int N) {
+  int Imax = 4 * (N * N);
+  int CovMax = Imax * Imax;
+  std::vector<long double> result(3 * CovMax);
+  for (double l1 = 0; l1 < N; l1++) {
+    for (double m1 = -l1; m1 <= l1; m1++) {
+      for (double i; i <= 2; i++) {
+        for (double a = 1; a <= 2; a++) {
+          int idx_ai_ai_l1m1_l1m1 = indexXX(a, i, l1, m1, a, i, l1, m1, N);
+          result[idx_ai_ai_l1m1_l1m1] = initialCondition[idx_ai_ai_l1m1_l1m1] +
+                                        Sign(m1) * R(l1, std::abs(m1));
+          result[CovMax + idx_ai_ai_l1m1_l1m1] =
+              initialCondition[CovMax + idx_ai_ai_l1m1_l1m1] +
+              Sign(m1) * R(l1, std::abs(m1));
+          result[2 * CovMax + idx_ai_ai_l1m1_l1m1] =
+              initialCondition[2 * CovMax + idx_ai_ai_l1m1_l1m1] +
+              Sign(m1) * R(l1, std::abs(m1));
         }
       }
     }

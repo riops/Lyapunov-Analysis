@@ -35,14 +35,15 @@ int main(int argc, char **argv) {
   omp_set_num_threads(110);
 
   // 3) Build initial conditions (one per rank)
+  std::vector<long double> EnergyValues = {5, 10, 15, 20, 25, 30};
   int matrixDimension = 2;
+  long double lambda = 0.25;
+  long double mu = 5.0;
+  long double R = 2.0;
   std::vector<std::vector<long double>> allICs(world_size);
   for (int r = 0; r < world_size; ++r) {
-    long double scale = 1.0L + 0.1L * r;
-    std::vector<long double> sigmaXX = {1.22577L * scale, 0.603123L * scale};
-    std::vector<long double> sigmaPP = {19.8276L * scale, 10.0575L * scale};
-    allICs[r] =
-        GenerateInitialConditionReduced(sigmaXX, sigmaPP, matrixDimension);
+    allICs[r] = GenerateInitialConditionReduced(1, matrixDimension,
+                                                EnergyValues[r], lambda, R, mu);
   }
   auto myIC = allICs[world_rank];
 
