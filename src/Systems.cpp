@@ -61,8 +61,6 @@ averagedEquationsPolarizationBasisSymmetryReducedParallel(
 
   std::vector<long double> result(3 * CovMax);
 
-  // TODO: Create a lookup table for HFunction and if the value is zero than
-  // ignore the summation.
 #pragma omp parallel for collapse(9)
   for (int lm1_int = 0; lm1_int < N * N; lm1_int++) {
     for (int i_int = 1; i_int <= 2; i_int++) {
@@ -207,8 +205,8 @@ std::vector<long double>
 averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
     const std::vector<long double> &allVectors,
     const std::vector<std::vector<double>> &H) {
-  long double mu = 0.25;    // Previous value was 1.0
-  long double lambda = 5.0; // Previous value was 10.0
+  long double mu = 0.25;     // Previous value was 1.0
+  long double lambda = 10.0; // Previous value was 10.0
   long double R = 2.0;
 
   int N = 2;
@@ -301,25 +299,25 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
 
                     if (l1Orl2 == l1 && m1Orm2 == m1) {
 
+                      // HFunction(l3, l4, l5, l1, m3, m4, m5, m1, N) *
                       ppDotSubSum1 =
-                          HFunction(l3, l4, l5, l1, m3, m4, m5, m1, N) *
-                          G(a, b, c, d) *
+                          H[h_index][7] * G(a, b, c, d) *
                           (XP[idx_bk_ej_l5m5_l2m2] * XX[idx_ck_di_l3m3_l4m4] +
                            XP[idx_ck_ej_l3m3_l2m2] * XX[idx_bk_di_l5m5_l4m4] +
                            XP[idx_di_ej_l4m4_l2m2] * XX[idx_ck_bk_l3m3_l5m5]);
 
                       // Compute the dot product of the XP term.
+                      // HFunction(l3, l4, l5, l1, m3, m4, m5, m1, N)
                       xpDotSubSum =
-                          HFunction(l3, l4, l5, l1, m3, m4, m5, m1, N) *
-                          G(a, b, c, d) *
+                          H[h_index][7] * G(a, b, c, d) *
                           (XX[idx_bk_ej_l5m5_l2m2] * XX[idx_ck_di_l3m3_l4m4] +
                            XX[idx_ck_ej_l3m3_l2m2] * XX[idx_bk_di_l5m5_l4m4] +
                            XX[idx_di_ej_l4m4_l2m2] * XX[idx_ck_bk_l3m3_l5m5]);
 
                     } else if (l1Orl2 == l2 && m1Orm2 == m2) {
+                      // HFunction(l3, l4, l5, l2, m3, m4, m5, m2, N)
                       ppDotSubSum2 =
-                          HFunction(l3, l4, l5, l2, m3, m4, m5, m2, N) *
-                          G(e, b, c, d) *
+                          H[h_index][7] * G(e, b, c, d) *
                           (XP[idx_bk_ai_l5m5_l1m1] * XX[idx_ck_dj_l3m3_l4m4] +
                            XP[idx_ck_ai_l3m3_l1m1] * XX[idx_bk_dj_l5m5_l4m4] +
                            XP[idx_dj_ai_l4m4_l1m1] * XX[idx_ck_bk_l3m3_l5m5]);
@@ -480,6 +478,7 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelMpi(
                             PP[idx_ai_ej_l1m1_l2m2];
                       }
                     }
+                    EOMPolarizationBasis_2025 - 05 - 05_18 - 13 - 19_55.csv
                   }
                 }
               }

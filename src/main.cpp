@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
   std::vector<long double> EnergyValues = {5, 10, 15, 20, 25, 30};
   int matrixDimension = 2;
   long double lambda = 0.25;
-  long double mu = 5.0;
+  long double mu = 10.0;
   long double R = 2.0;
   auto HTable = LoadHTable(matrixDimension);
   std::vector<std::vector<long double>> allICs(world_size);
