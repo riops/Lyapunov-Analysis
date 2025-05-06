@@ -90,8 +90,8 @@ int main(int argc, char **argv) {
   //    EOMPolarizationBasis_<datetime>_<rank>_Traced.csv
   {
     std::ostringstream fn;
-    fn << "./data/csv/EOMPolarizationBasis_" << datetime << "_" << world_rank
-       << "_Traced.csv";
+    fn << "./data/csv/EOMPolarizationBasis_" << datetime << "_"
+       << EnergyValues[world_rank] << "_Traced.csv";
     CalculateTracedValues(std::string("EOMPolarizationBasis_") + datetime +
                               "_" + std::to_string(world_rank) + ".csv",
                           fn.str(), matrixDimension);

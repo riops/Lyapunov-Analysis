@@ -254,7 +254,7 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
                     double l5 = H[h_index][4];
                     double m5 = H[h_index][5];
                     double l1Orl2 = H[h_index][6];
-                    double m1Orm2 = H[h_index][6];
+                    double m1Orm2 = H[h_index][7];
 
                     int idx_ai_l1m1 = indexX(a, i, l1, m1, N);
                     int idx_bk_l5m5 = indexX(b, k, l5, m5, N);
@@ -301,7 +301,7 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
 
                       // HFunction(l3, l4, l5, l1, m3, m4, m5, m1, N) *
                       ppDotSubSum1 =
-                          H[h_index][7] * G(a, b, c, d) *
+                          H[h_index][8] * G(a, b, c, d) *
                           (XP[idx_bk_ej_l5m5_l2m2] * XX[idx_ck_di_l3m3_l4m4] +
                            XP[idx_ck_ej_l3m3_l2m2] * XX[idx_bk_di_l5m5_l4m4] +
                            XP[idx_di_ej_l4m4_l2m2] * XX[idx_ck_bk_l3m3_l5m5]);
@@ -309,7 +309,7 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
                       // Compute the dot product of the XP term.
                       // HFunction(l3, l4, l5, l1, m3, m4, m5, m1, N)
                       xpDotSubSum =
-                          H[h_index][7] * G(a, b, c, d) *
+                          H[h_index][8] * G(a, b, c, d) *
                           (XX[idx_bk_ej_l5m5_l2m2] * XX[idx_ck_di_l3m3_l4m4] +
                            XX[idx_ck_ej_l3m3_l2m2] * XX[idx_bk_di_l5m5_l4m4] +
                            XX[idx_di_ej_l4m4_l2m2] * XX[idx_ck_bk_l3m3_l5m5]);
@@ -317,7 +317,7 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
                     } else if (l1Orl2 == l2 && m1Orm2 == m2) {
                       // HFunction(l3, l4, l5, l2, m3, m4, m5, m2, N)
                       ppDotSubSum2 =
-                          H[h_index][7] * G(e, b, c, d) *
+                          H[h_index][8] * G(e, b, c, d) *
                           (XP[idx_bk_ai_l5m5_l1m1] * XX[idx_ck_dj_l3m3_l4m4] +
                            XP[idx_ck_ai_l3m3_l1m1] * XX[idx_bk_dj_l5m5_l4m4] +
                            XP[idx_dj_ai_l4m4_l1m1] * XX[idx_ck_bk_l3m3_l5m5]);
@@ -478,7 +478,6 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelMpi(
                             PP[idx_ai_ej_l1m1_l2m2];
                       }
                     }
-                    EOMPolarizationBasis_2025 - 05 - 05_18 - 13 - 19_55.csv
                   }
                 }
               }
