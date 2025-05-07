@@ -248,8 +248,7 @@ std::vector<std::vector<long double>> IntegrateSystem45(
         RungeKutta45(f, currentPoint, dt);
     currentPoint = rk45Result[0];
     dt = rk45Result[1][0];
-    if (i % divider == 0)
-      dtVector.push_back(dt + dtVector[i]);
+    dtVector.push_back(dt + dtVector[i]);
 
     auto end = Clock::now();
     auto duration =
@@ -258,7 +257,7 @@ std::vector<std::vector<long double>> IntegrateSystem45(
               << ". Estimated Time: " << duration.count() * (numSteps - i)
               << "ms\n";
 
-    if (allValues && i % divider == 0) {
+    if (allValues) {
       result.push_back(currentPoint);
     }
   }
