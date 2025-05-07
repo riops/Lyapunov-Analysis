@@ -75,8 +75,8 @@ int main(int argc, char **argv) {
   //    EOMPolarizationBasis_<datetime>_<rank>.csv
   {
     std::ostringstream fn;
-    fn << "./data/csv/EOMPolarizationBasis_" << datetime << "_" << world_rank
-       << ".csv";
+    fn << "./data/csv/EOMPolarizationBasis_" << datetime << "_"
+       << EnergyValues[world_rank] << ".csv";
     std::ofstream fs(fn.str());
     for (size_t step = 0; step < traj.size(); ++step) {
       auto &row = traj[step];
