@@ -114,22 +114,13 @@ bool Wigner3jSelectionRule(double j1, double j2, double j3, double m1,
   for (double i = -j3; i <= j3; i++) {
     m3Values.push_back(i);
   }
-  bool isSumZero = IsSumZero(m1 + m2 + m3);
 
-  if (!(InVector(m1Values, m1) && InVector(m2Values, m2) &&
-        InVector(m3Values, m3))) {
+  if (!IsSumZero(m1 + m2 + m3))
     return false;
-  } else if (m1 + m2 + m3 != 0) {
+  if (std::abs(j1 - j2) > j3 || j3 > j1 + j2)
     return false;
-  } else if ((std::abs(j1 - j2) > j3) || (j3 > j1 + j2)) {
+  if (!IsInteger(j1 + j2 + j3))
     return false;
-  } else if (!(IsEvenInteger(j1 + j2 + j3))) {
-    return false;
-  } else if (isSumZero) {
-    if (!(IsEvenInteger(j1 + j2 + j3))) {
-      return false;
-    }
-  }
   return true;
 }
 
@@ -261,15 +252,15 @@ long double ClesbchGordan(double j1, double j2, double j3, double m1, double m2,
 long double HFunction(double l1, double l2, double l3, double l, double m1,
                       double m2, double m3, double m, int N) {
   long double result = 0;
-  for (double l4 = 0; l4 <= N; l4++) {
+  for (double l4 = 0; l4 < N; l4++) {
     for (double m4 = -l4; m4 <= l4; m4++) {
       result +=
-          std::pow(-1, l1 + l2 + l4) * std::pow(-1, l3 + l4 + l) *
+          (1 - std::pow(-1, l1 + l2 + l4)) * (1 - std::pow(-1, l3 + l4 + l)) *
           std::sqrt((2 * l1 + 1) * (2 * l2 + 1) * (2 * l3 + 1) * (2 * l4 + 1)) *
           Wigner6j(l1, l2, l4, (N - 1) / 2.0, (N - 1) / 2.0, (N - 1) / 2.0) *
-          Wigner6j(l3, l4, l, (N - 1) / 2.0, (N - 1) / 2.0, (N - 1) / 2.0) *
-          ClesbchGordan(l4, l1, l2, m4, m1, m2) *
-          ClesbchGordan(l, l3, l4, m, m3, m4);
+          Wigner6j(l3, l, l4, (N - 1) / 2.0, (N - 1) / 2.0, (N - 1) / 2.0) *
+          ClesbchGordan(l1, l2, l4, m1, m2, m4) *
+          ClesbchGordan(l3, l4, l, m3, m4, m);
     }
   }
   return result;

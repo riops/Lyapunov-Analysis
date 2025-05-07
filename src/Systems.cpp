@@ -205,11 +205,11 @@ std::vector<long double>
 averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
     const std::vector<long double> &allVectors,
     const std::vector<std::vector<double>> &H) {
-  long double mu = 0.25;     // Previous value was 1.0
-  long double lambda = 10.0; // Previous value was 10.0
+  long double mu = 0.25;    // Previous value was 1.0
+  long double lambda = 5.0; // Previous value was 10.0
   long double R = 2.0;
 
-  int N = 2;
+  int N = 3;
   int Imax = 4 * (N * N);   // Number of averaged variables
   int CovMax = Imax * Imax; // Number of covariance terms
   // int currentIndex = 0;

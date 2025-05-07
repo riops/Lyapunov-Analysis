@@ -35,9 +35,9 @@ int main(int argc, char **argv) {
 
   // 3) Build initial conditions (one per rank)
   std::vector<long double> EnergyValues = {5, 10, 15, 20, 25, 30};
-  int matrixDimension = 2;
+  int matrixDimension = 3;
   long double lambda = 0.25;
-  long double mu = 10.0;
+  long double mu = 5.0;
   long double R = 2.0;
   auto HTable = LoadHTable(matrixDimension);
   std::vector<std::vector<long double>> allICs(world_size);
@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
   auto myIC = allICs[world_rank];
 
   long double dt = 1e-2L;
-  int numSteps = 10;
+  int numSteps = 800;
 
   if (world_rank == 0) {
     std::cout << "Running " << world_size << " trajectories in parallel...\n";
