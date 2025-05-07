@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
   auto myIC = allICs[world_rank];
 
   long double dt = 1e-2L;
-  int numSteps = 800;
+  int numSteps = 40000;
 
   if (world_rank == 0) {
     std::cout << "Running " << world_size << " trajectories in parallel...\n";
