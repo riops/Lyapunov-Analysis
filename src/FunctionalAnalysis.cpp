@@ -234,8 +234,10 @@ std::vector<std::vector<long double>> IntegrateSystem45(
 
   std::vector<std::vector<long double>> result;
   std::vector<long double> currentPoint = point;
-  std::vector<long double> dtVector =
-      {}; // Edited so that the initial point is the second integration step.
+  std::vector<long double> dtVector = {dt};
+  if (allValues) {
+    result.push_back(currentPoint);
+  }
 
   for (int i = 0; i < numSteps; i++) {
     using Clock = std::chrono::high_resolution_clock;
