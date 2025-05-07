@@ -332,30 +332,30 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
                 }
               }
             }
+            int l1_int = static_cast<int>(sqrt(lm1_int));
+            int m1_int = lm1_int - (l1_int * l1_int + l1_int);
+            double l1 = static_cast<double>(l1_int);
+            double m1 = static_cast<double>(m1_int);
+            double i = static_cast<double>(i_int);
+            double a = static_cast<double>(a_int);
+
+            int l2_int = static_cast<int>(sqrt(lm2_int));
+            int m2_int = lm2_int - (l2_int * l2_int + l2_int);
+            double l2 = static_cast<double>(l2_int);
+            double m2 = static_cast<double>(m2_int);
+
+            int idx_ai_ej_l1m1_l2m2 = indexXX(a, i, l1, m1, a, i, l2, m2, N);
+            // First term of the XXdot term
+            result[idx_ai_ej_l1m1_l2m2] = XP[idx_ai_ej_l1m1_l2m2];
+            result[CovMax + idx_ai_ej_l1m1_l2m2] +=
+                -((mu + l1 * (l1 + 1) / std::pow(R, 2)) *
+                  XP[idx_ai_ej_l1m1_l2m2]);
+
+            result[2 * CovMax + idx_ai_ej_l1m1_l2m2] +=
+                -((mu + l1 * (l1 + 1) / std::pow(R, 2)) *
+                  XX[idx_ai_ej_l1m1_l2m2]) +
+                PP[idx_ai_ej_l1m1_l2m2];
           }
-
-          int l1_int = static_cast<int>(sqrt(lm1_int));
-          int m1_int = lm1_int - (l1_int * l1_int + l1_int);
-          double l1 = static_cast<double>(l1_int);
-          double m1 = static_cast<double>(m1_int);
-          double i = static_cast<double>(i_int);
-          double a = static_cast<double>(a_int);
-
-          int l2_int = static_cast<int>(sqrt(lm2_int));
-          int m2_int = lm2_int - (l2_int * l2_int + l2_int);
-          double l2 = static_cast<double>(l2_int);
-          double m2 = static_cast<double>(m2_int);
-
-          int idx_ai_ej_l1m1_l2m2 = indexXX(a, i, l1, m1, a, i, l2, m2, N);
-          // First term of the XXdot term
-          result[idx_ai_ej_l1m1_l2m2] = XP[idx_ai_ej_l1m1_l2m2];
-          result[CovMax + idx_ai_ej_l1m1_l2m2] += -(
-              (mu + l1 * (l1 + 1) / std::pow(R, 2)) * XP[idx_ai_ej_l1m1_l2m2]);
-
-          result[2 * CovMax + idx_ai_ej_l1m1_l2m2] +=
-              -((mu + l1 * (l1 + 1) / std::pow(R, 2)) *
-                XX[idx_ai_ej_l1m1_l2m2]) +
-              PP[idx_ai_ej_l1m1_l2m2];
         }
       }
     }
