@@ -223,29 +223,45 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
 
   std::vector<long double> result(3 * CovMax);
 
-#pragma omp parallel for collapse(5)
+#pragma omp parallel for collapse(4)
   for (int lm1_int = 0; lm1_int < N * N; lm1_int++) {
     for (int i_int = 1; i_int <= 2; i_int++) {
       for (int a_int = 1; a_int <= 2; a_int++) {
         for (int lm2_int = 0; lm2_int < N * N; lm2_int++) {
+          int l1_int = static_cast<int>(sqrt(lm1_int));
+          int m1_int = lm1_int - (l1_int * l1_int + l1_int);
+          double l1 = static_cast<double>(l1_int);
+          double m1 = static_cast<double>(m1_int);
+          double i = static_cast<double>(i_int);
+          double a = static_cast<double>(a_int);
+
+          int l2_int = static_cast<int>(sqrt(lm2_int));
+          int m2_int = lm2_int - (l2_int * l2_int + l2_int);
+          double l2 = static_cast<double>(l2_int);
+          double m2 = static_cast<double>(m2_int);
+          double j = static_cast<double>(i_int);
+          double e = static_cast<double>(a_int);
+
+          long double ppDotSubSum1 = 0;
+          long double ppDotSubSum2 = 0;
+          long double xpDotSubSum = 0;
+
+          int idx_ai_ej_l1m1_l2m2 = indexXX(a, i, l1, m1, e, j, l2, m2, N);
+
+          // First term of the XXdot term
+          result[idx_ai_ej_l1m1_l2m2] = XP[idx_ai_ej_l1m1_l2m2];
+          result[CovMax + idx_ai_ej_l1m1_l2m2] = -(
+              (mu + l1 * (l1 + 1) / std::pow(R, 2)) * XP[idx_ai_ej_l1m1_l2m2]);
+
+          result[2 * CovMax + idx_ai_ej_l1m1_l2m2] =
+              -((mu + l1 * (l1 + 1) / std::pow(R, 2)) *
+                XX[idx_ai_ej_l1m1_l2m2]) +
+              PP[idx_ai_ej_l1m1_l2m2];
           for (int h_index = 0; h_index < H.size(); h_index++) {
             for (double k = 1; k <= 2; k++) {
               for (double b = 1; b <= 2; b++) {
                 for (double c = 1; c <= 2; c++) {
                   for (double d = 1; d <= 2; d++) {
-                    int l1_int = static_cast<int>(sqrt(lm1_int));
-                    int m1_int = lm1_int - (l1_int * l1_int + l1_int);
-                    double l1 = static_cast<double>(l1_int);
-                    double m1 = static_cast<double>(m1_int);
-                    double i = static_cast<double>(i_int);
-                    double a = static_cast<double>(a_int);
-
-                    int l2_int = static_cast<int>(sqrt(lm2_int));
-                    int m2_int = lm2_int - (l2_int * l2_int + l2_int);
-                    double l2 = static_cast<double>(l2_int);
-                    double m2 = static_cast<double>(m2_int);
-                    double j = static_cast<double>(i_int);
-                    double e = static_cast<double>(a_int);
 
                     double l3 = H[h_index][0];
                     double m3 = H[h_index][1];
@@ -268,8 +284,7 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
                         indexXX(c, k, l3, m3, b, k, l5, m5, N);
                     // Compute the dot product of the XX, PP and
                     // XP terms.
-                    int idx_ai_ej_l1m1_l2m2 =
-                        indexXX(a, i, l1, m1, e, j, l2, m2, N);
+
                     // First term of the XXdot term
                     result[idx_ai_ej_l1m1_l2m2] = XP[idx_ai_ej_l1m1_l2m2];
                     int idx_bk_ej_l5m5_l2m2 =
@@ -293,14 +308,10 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
                         indexXX(d, j, l4, m4, a, i, l1, m1, N);
                     int idx_dj_l4m4 = indexX(d, j, l4, m4, N);
 
-                    long double ppDotSubSum1 = 0;
-                    long double ppDotSubSum2 = 0;
-                    long double xpDotSubSum = 0;
-
                     if (l1Orl2 == l1 && m1Orm2 == m1) {
 
                       // HFunction(l3, l4, l5, l1, m3, m4, m5, m1, N) *
-                      ppDotSubSum1 =
+                      ppDotSubSum1 +=
                           H[h_index][8] * G(a, b, c, d) *
                           (XP[idx_bk_ej_l5m5_l2m2] * XX[idx_ck_di_l3m3_l4m4] +
                            XP[idx_ck_ej_l3m3_l2m2] * XX[idx_bk_di_l5m5_l4m4] +
@@ -308,7 +319,7 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
 
                       // Compute the dot product of the XP term.
                       // HFunction(l3, l4, l5, l1, m3, m4, m5, m1, N)
-                      xpDotSubSum =
+                      xpDotSubSum +=
                           H[h_index][8] * G(a, b, c, d) *
                           (XX[idx_bk_ej_l5m5_l2m2] * XX[idx_ck_di_l3m3_l4m4] +
                            XX[idx_ck_ej_l3m3_l2m2] * XX[idx_bk_di_l5m5_l4m4] +
@@ -316,7 +327,7 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
 
                     } else if (l1Orl2 == l2 && m1Orm2 == m2) {
                       // HFunction(l3, l4, l5, l2, m3, m4, m5, m2, N)
-                      ppDotSubSum2 =
+                      ppDotSubSum2 +=
                           H[h_index][8] * G(e, b, c, d) *
                           (XP[idx_bk_ai_l5m5_l1m1] * XX[idx_ck_dj_l3m3_l4m4] +
                            XP[idx_ck_ai_l3m3_l1m1] * XX[idx_bk_dj_l5m5_l4m4] +
@@ -332,29 +343,6 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
                 }
               }
             }
-            int l1_int = static_cast<int>(sqrt(lm1_int));
-            int m1_int = lm1_int - (l1_int * l1_int + l1_int);
-            double l1 = static_cast<double>(l1_int);
-            double m1 = static_cast<double>(m1_int);
-            double i = static_cast<double>(i_int);
-            double a = static_cast<double>(a_int);
-
-            int l2_int = static_cast<int>(sqrt(lm2_int));
-            int m2_int = lm2_int - (l2_int * l2_int + l2_int);
-            double l2 = static_cast<double>(l2_int);
-            double m2 = static_cast<double>(m2_int);
-
-            int idx_ai_ej_l1m1_l2m2 = indexXX(a, i, l1, m1, a, i, l2, m2, N);
-            // First term of the XXdot term
-            result[idx_ai_ej_l1m1_l2m2] = XP[idx_ai_ej_l1m1_l2m2];
-            result[CovMax + idx_ai_ej_l1m1_l2m2] +=
-                -((mu + l1 * (l1 + 1) / std::pow(R, 2)) *
-                  XP[idx_ai_ej_l1m1_l2m2]);
-
-            result[2 * CovMax + idx_ai_ej_l1m1_l2m2] +=
-                -((mu + l1 * (l1 + 1) / std::pow(R, 2)) *
-                  XX[idx_ai_ej_l1m1_l2m2]) +
-                PP[idx_ai_ej_l1m1_l2m2];
           }
         }
       }
