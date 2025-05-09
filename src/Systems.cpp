@@ -311,7 +311,7 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
                     if (l1Orl2 == l1 && m1Orm2 == m1) {
 
                       // HFunction(l3, l4, l5, l1, m3, m4, m5, m1, N) *
-                      ppDotSubSum1 +=
+                      ppDotSubSum1 =
                           H[h_index][8] * G(a, b, c, d) *
                           (XP[idx_bk_ej_l5m5_l2m2] * XX[idx_ck_di_l3m3_l4m4] +
                            XP[idx_ck_ej_l3m3_l2m2] * XX[idx_bk_di_l5m5_l4m4] +
@@ -319,7 +319,7 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
 
                       // Compute the dot product of the XP term.
                       // HFunction(l3, l4, l5, l1, m3, m4, m5, m1, N)
-                      xpDotSubSum +=
+                      xpDotSubSum =
                           H[h_index][8] * G(a, b, c, d) *
                           (XX[idx_bk_ej_l5m5_l2m2] * XX[idx_ck_di_l3m3_l4m4] +
                            XX[idx_ck_ej_l3m3_l2m2] * XX[idx_bk_di_l5m5_l4m4] +
@@ -327,7 +327,7 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
 
                     } else if (l1Orl2 == l2 && m1Orm2 == m2) {
                       // HFunction(l3, l4, l5, l2, m3, m4, m5, m2, N)
-                      ppDotSubSum2 +=
+                      ppDotSubSum2 =
                           H[h_index][8] * G(e, b, c, d) *
                           (XP[idx_bk_ai_l5m5_l1m1] * XX[idx_ck_dj_l3m3_l4m4] +
                            XP[idx_ck_ai_l3m3_l1m1] * XX[idx_bk_dj_l5m5_l4m4] +
