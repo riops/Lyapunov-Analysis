@@ -334,10 +334,10 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
                            XP[idx_dj_ai_l4m4_l1m1] * XX[idx_ck_bk_l3m3_l5m5]);
                     }
 
-                    result[CovMax + idx_ai_ej_l1m1_l2m2] +=
+                    result[CovMax + idx_ai_ej_l1m1_l2m2] -=
                         (lambda * (ppDotSubSum1 + ppDotSubSum2) / N);
 
-                    result[2 * CovMax + idx_ai_ej_l1m1_l2m2] +=
+                    result[2 * CovMax + idx_ai_ej_l1m1_l2m2] -=
                         (lambda * xpDotSubSum / N);
                   }
                 }
