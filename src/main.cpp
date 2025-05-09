@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
   omp_set_num_threads(110);
 
   // 3) Build initial conditions (one per rank)
-  std::vector<long double> EnergyValues = {1, 2, 3, 4, 5, 6};
+  std::vector<long double> EnergyValues = {50, 60, 70, 80, 90, 100};
   int matrixDimension = 3;
   long double lambda = 0.25;
   long double mu = 5.0;
