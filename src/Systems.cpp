@@ -250,11 +250,12 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
 
           // First term of the XXdot term
           result[idx_ai_ej_l1m1_l2m2] = XP[idx_ai_ej_l1m1_l2m2];
-          result[CovMax + idx_ai_ej_l1m1_l2m2] = -(
-              (mu + l1 * (l1 + 1) / std::pow(R, 2)) * XP[idx_ai_ej_l1m1_l2m2]);
+          result[CovMax + idx_ai_ej_l1m1_l2m2] =
+              -((std::pow(mu, 2) + l1 * (l1 + 1) / std::pow(R, 2)) *
+                XP[idx_ai_ej_l1m1_l2m2]);
 
           result[2 * CovMax + idx_ai_ej_l1m1_l2m2] =
-              -((mu + l1 * (l1 + 1) / std::pow(R, 2)) *
+              -((std::pow(mu, 2) + l1 * (l1 + 1) / std::pow(R, 2)) *
                 XX[idx_ai_ej_l1m1_l2m2]) +
               PP[idx_ai_ej_l1m1_l2m2];
           for (int h_index = 0; h_index < H.size(); h_index++) {
@@ -334,10 +335,10 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
                     }
 
                     result[CovMax + idx_ai_ej_l1m1_l2m2] +=
-                        -(lambda * (ppDotSubSum1 + ppDotSubSum2) / N);
+                        (lambda * (ppDotSubSum1 + ppDotSubSum2) / N);
 
                     result[2 * CovMax + idx_ai_ej_l1m1_l2m2] +=
-                        -(lambda * xpDotSubSum / N);
+                        (lambda * xpDotSubSum / N);
                   }
                 }
               }
