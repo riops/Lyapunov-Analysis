@@ -286,7 +286,6 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
                     // XP terms.
 
                     // First term of the XXdot term
-                    result[idx_ai_ej_l1m1_l2m2] = XP[idx_ai_ej_l1m1_l2m2];
                     int idx_bk_ej_l5m5_l2m2 =
                         indexXX(b, k, l5, m5, e, j, l2, m2, N);
                     int idx_ck_ej_l3m3_l2m2 =
