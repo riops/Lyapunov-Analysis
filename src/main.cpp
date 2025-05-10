@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
 
   // 3) Build initial conditions (one per rank)
   std::vector<long double> EnergyValues = {50, 60, 70, 80, 90, 100};
-  int matrixDimension = 3;
+  int matrixDimension = 2;
   long double mu = 0.25;
   long double lambda = 3.0;
   long double R = 2.0;

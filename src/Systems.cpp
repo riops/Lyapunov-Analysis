@@ -210,7 +210,7 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
   long double lambda = 3.0; // Previous value was 10.0
   long double R = 2.0;
 
-  int N = 3;
+  int N = 2;
   int Imax = 4 * (N * N);   // Number of averaged variables
   int CovMax = Imax * Imax; // Number of covariance terms
   // int currentIndex = 0;
@@ -325,7 +325,6 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
                           (XX[idx_bk_ej_l5m5_l2m2] * XX[idx_ck_di_l3m3_l4m4] +
                            XX[idx_ck_ej_l3m3_l2m2] * XX[idx_bk_di_l5m5_l4m4] +
                            XX[idx_di_ej_l4m4_l2m2] * XX[idx_ck_bk_l3m3_l5m5]);
-
                     } else if (l1Orl2 == l2 && m1Orm2 == m2) {
                       // HFunction(l3, l4, l5, l2, m3, m4, m5, m2, N)
                       ppDotSubSum2 =
