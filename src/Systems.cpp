@@ -45,7 +45,7 @@ std::vector<long double>
 averagedEquationsPolarizationBasisSymmetryReducedParallel(
     const std::vector<long double> &allVectors) {
   long double mu = 0.25;    // Previous value was 1.0
-  long double lambda = 5.0; // Previous value was 10.0
+  long double lambda = 1.0; // Previous value was 10.0
   long double R = 2.0;
 
   int N = 2;
@@ -207,13 +207,12 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
     const std::vector<long double> &allVectors,
     const std::vector<std::vector<double>> &H) {
   long double mu = 0.25;    // Previous value was 1.0
-  long double lambda = 3.0; // Previous value was 10.0
+  long double lambda = 1.0; // Previous value was 10.0
   long double R = 2.0;
 
   int N = 2;
   int Imax = 4 * (N * N);   // Number of averaged variables
   int CovMax = Imax * Imax; // Number of covariance terms
-  // int currentIndex = 0;
 
   // Extract covariance vectors (centered)
   std::vector<long double> XX(allVectors.begin(), allVectors.begin() + CovMax);
@@ -224,7 +223,7 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
 
   std::vector<long double> result(3 * CovMax);
 
-#pragma omp parallel for collapse(4)
+  // #pragma omp parallel for collapse(4)
   for (int lm1_int = 0; lm1_int < N * N; lm1_int++) {
     for (int i_int = 1; i_int <= 2; i_int++) {
       for (int a_int = 1; a_int <= 2; a_int++) {
@@ -243,14 +242,11 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
           double j = static_cast<double>(i_int);
           double e = static_cast<double>(a_int);
 
-          long double ppDotSubSum1 = 0;
-          long double ppDotSubSum2 = 0;
-          long double xpDotSubSum = 0;
-
           int idx_ai_ej_l1m1_l2m2 = indexXX(a, i, l1, m1, e, j, l2, m2, N);
 
           // First term of the XXdot term
           result[idx_ai_ej_l1m1_l2m2] = XP[idx_ai_ej_l1m1_l2m2];
+
           result[CovMax + idx_ai_ej_l1m1_l2m2] =
               -((std::pow(mu, 2) + l1 * (l1 + 1) / std::pow(R, 2)) *
                 XP[idx_ai_ej_l1m1_l2m2]);
@@ -259,6 +255,7 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
               -((std::pow(mu, 2) + l1 * (l1 + 1) / std::pow(R, 2)) *
                 XX[idx_ai_ej_l1m1_l2m2]) +
               PP[idx_ai_ej_l1m1_l2m2];
+
           for (int h_index = 0; h_index < H.size(); h_index++) {
             for (double k = 1; k <= 2; k++) {
               for (double b = 1; b <= 2; b++) {
@@ -309,6 +306,10 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
                         indexXX(d, j, l4, m4, a, i, l1, m1, N);
                     int idx_dj_l4m4 = indexX(d, j, l4, m4, N);
 
+                    long double ppDotSubSum1 = 0;
+                    long double ppDotSubSum2 = 0;
+                    long double xpDotSubSum = 0;
+
                     if (l1Orl2 == l1 && m1Orm2 == m1) {
 
                       // HFunction(l3, l4, l5, l1, m3, m4, m5, m1, N) *
@@ -325,6 +326,17 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
                           (XX[idx_bk_ej_l5m5_l2m2] * XX[idx_ck_di_l3m3_l4m4] +
                            XX[idx_ck_ej_l3m3_l2m2] * XX[idx_bk_di_l5m5_l4m4] +
                            XX[idx_di_ej_l4m4_l2m2] * XX[idx_ck_bk_l3m3_l5m5]);
+
+                      // if (ppDotSubSum1 != 0 || xpDotSubSum != 0) {
+                      //   std::cout << "ppDotSubSum1 = " << ppDotSubSum1
+                      //             << ", xpDotSubSum = " << xpDotSubSum
+                      //             << ", Hsymbol(" << l3 << ", " << l4 << ", "
+                      //             << l5 << ", " << l1 << ", " << m3 << ", "
+                      //             << m4 << ", " << m5 << ", " << m1
+                      //             << ") = " << H[h_index][8] << ", "
+                      //             << G(a, b, c, d) << "\n";
+                      // }
+
                     } else if (l1Orl2 == l2 && m1Orm2 == m2) {
                       // HFunction(l3, l4, l5, l2, m3, m4, m5, m2, N)
                       ppDotSubSum2 =
@@ -332,6 +344,14 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
                           (XP[idx_bk_ai_l5m5_l1m1] * XX[idx_ck_dj_l3m3_l4m4] +
                            XP[idx_ck_ai_l3m3_l1m1] * XX[idx_bk_dj_l5m5_l4m4] +
                            XP[idx_dj_ai_l4m4_l1m1] * XX[idx_ck_bk_l3m3_l5m5]);
+                      // if (ppDotSubSum2 != 0) {
+                      //   std::cout << "ppDotSubSum2 = " << ppDotSubSum2
+                      //             << ", Hsymbol(" << l3 << ", " << l4 << ", "
+                      //             << l5 << ", " << l1 << ", " << m3 << ", "
+                      //             << m4 << ", " << m5 << ", " << m1
+                      //             << ") = " << H[h_index][8] << ", "
+                      //             << G(a, b, c, d) << "\n";
+                      // }
                     }
 
                     result[CovMax + idx_ai_ej_l1m1_l2m2] -=

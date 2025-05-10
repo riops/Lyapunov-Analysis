@@ -34,20 +34,20 @@ int main(int argc, char **argv) {
   omp_set_num_threads(110);
 
   // 3) Build initial conditions (one per rank)
-  std::vector<long double> EnergyValues = {50, 60, 70, 80, 90, 100};
+  std::vector<long double> EnergyValues = {5, 10, 15, 20, 25, 30};
   int matrixDimension = 2;
   long double mu = 0.25;
-  long double lambda = 3.0;
+  long double lambda = 1.0;
   long double R = 2.0;
   auto HTable = LoadHTable(matrixDimension);
   std::vector<std::vector<long double>> allICs(world_size);
   for (int r = 0; r < world_size; ++r) {
-    allICs[r] = GenerateInitialConditionReduced(2, matrixDimension,
+    allICs[r] = GenerateInitialConditionReduced(1, matrixDimension,
                                                 EnergyValues[r], lambda, R, mu);
   }
   auto myIC = allICs[world_rank];
 
-  long double dt = 1e-4L;
+  long double dt = 1e-6L;
   int numSteps = 800;
 
   if (world_rank == 0) {
