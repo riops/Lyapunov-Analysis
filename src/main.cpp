@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
   }
   auto myIC = allICs[world_rank];
 
-  long double dt = 1e-2L;
+  long double dt = 1e-4L;
   int numSteps = 800;
 
   if (world_rank == 0) {

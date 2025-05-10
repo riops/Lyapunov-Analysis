@@ -210,7 +210,7 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
   long double lambda = 3.0; // Previous value was 10.0
   long double R = 2.0;
 
-  int N = 2;
+  int N = 3;
   int Imax = 4 * (N * N);   // Number of averaged variables
   int CovMax = Imax * Imax; // Number of covariance terms
   // int currentIndex = 0;
