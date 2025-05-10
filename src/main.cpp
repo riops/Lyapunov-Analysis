@@ -36,13 +36,13 @@ int main(int argc, char **argv) {
   // 3) Build initial conditions (one per rank)
   std::vector<long double> EnergyValues = {50, 60, 70, 80, 90, 100};
   int matrixDimension = 3;
-  long double lambda = 0.25;
-  long double mu = 5.0;
+  long double mu = 0.25;
+  long double lambda = 3.0;
   long double R = 2.0;
   auto HTable = LoadHTable(matrixDimension);
   std::vector<std::vector<long double>> allICs(world_size);
   for (int r = 0; r < world_size; ++r) {
-    allICs[r] = GenerateInitialConditionReduced(1, matrixDimension,
+    allICs[r] = GenerateInitialConditionReduced(2, matrixDimension,
                                                 EnergyValues[r], lambda, R, mu);
   }
   auto myIC = allICs[world_rank];

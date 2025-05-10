@@ -130,7 +130,7 @@ long double AdjustStepSize(long double dt, long double error, long double tol) {
   const long double order = 5.0L; // for RK45 use exponent 1/(order)
   const long double p = 1.0L / order;
 
-  if (error <= 0.0L) {
+  if (error <= 0.01L) {
     // no error ⇒ crank it up
     return dt * 2.0L;
   }

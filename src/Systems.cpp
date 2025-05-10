@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <functional>
+#include <iostream>
 #include <mpi.h>
 #include <omp.h>
 #include <random>
@@ -206,10 +207,10 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
     const std::vector<long double> &allVectors,
     const std::vector<std::vector<double>> &H) {
   long double mu = 0.25;    // Previous value was 1.0
-  long double lambda = 5.0; // Previous value was 10.0
+  long double lambda = 3.0; // Previous value was 10.0
   long double R = 2.0;
 
-  int N = 3;
+  int N = 2;
   int Imax = 4 * (N * N);   // Number of averaged variables
   int CovMax = Imax * Imax; // Number of covariance terms
   // int currentIndex = 0;

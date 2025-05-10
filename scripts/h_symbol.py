@@ -106,31 +106,43 @@ if __name__ == '__main__':
     #         json.dump(grouped, f, indent=2)
 
     # 3) Nonzero HSymbol entries grouped by N
-    grouped_symbol = {}
-    fname = 'HSymbol_nonzero.json'
-    for N in range(1, N_max + 1):
-        entries = []
-        print(f"Computing {fname} for N={N}...")
-        for l1 in range(N):
-            for m1 in range(-l1, l1 + 1):
-                for l2 in range(N):
-                    for m2 in range(-l2, l2 + 1):
-                        for l3 in range(N):
-                            for m3 in range(-l3, l3 + 1):
-                                for l4 in range(N):
-                                    for m4 in range(-l4, l4 + 1):
-                                        val = HSymbol(l1, m1, l2, m2, l3, m3, l4, m4, N)
-                                        if val != 0:
-                                            entries.append({
-                                                'l1': l1, 'm1': m1,
-                                                'l2': l2, 'm2': m2,
-                                                'l3': l3, 'm3': m3,
-                                                'l4': l4, 'm4': m4,
-                                                'value': float(val.evalf())
-                                            })
-        if entries:
-            grouped_symbol[N] = entries
-    with open(f'data/json/{fname}', 'w') as f:
-        json.dump(grouped_symbol, f, indent=2)
+    # grouped_symbol = {}
+    # fname = 'HSymbol_nonzero.json'
+    # for N in range(1, N_max + 1):
+    #     entries = []
+    #     print(f"Computing {fname} for N={N}...")
+    #     for l1 in range(N):
+    #         for m1 in range(-l1, l1 + 1):
+    #             for l2 in range(N):
+    #                 for m2 in range(-l2, l2 + 1):
+    #                     for l3 in range(N):
+    #                         for m3 in range(-l3, l3 + 1):
+    #                             for l4 in range(N):
+    #                                 for m4 in range(-l4, l4 + 1):
+    #                                     val = HSymbol(l1, m1, l2, m2, l3, m3, l4, m4, N)
+    #                                     if val != 0:
+    #                                         entries.append({
+    #                                             'l1': l1, 'm1': m1,
+    #                                             'l2': l2, 'm2': m2,
+    #                                             'l3': l3, 'm3': m3,
+    #                                             'l4': l4, 'm4': m4,
+    #                                             'value': float(val.evalf())
+    #                                         })
+    #     if entries:
+    #         grouped_symbol[N] = entries
+    # with open(f'data/json/{fname}', 'w') as f:
+    #     json.dump(grouped_symbol, f, indent=2)
+    #
+    # print("All grouped JSON files with floats have been written.")
 
-    print("All grouped JSON files with floats have been written.")
+    N=3
+    entries = []
+    for l1 in range(N):
+        for m1 in range(-l1, l1 + 1):
+            for l2 in range(N):
+                for m2 in range(-l2, l2 + 1):
+                    for l3 in range(N):
+                        for m3 in range(-l3, l3 + 1):
+                            val = HSymbol(l1, m1, l2, m2, l3, m3, 2, -2, N)
+                            if val != 0:
+                                print(f"l1: {l1}, m1: {m1}, l2: {l2}, m2: {m2}, l3: {l3}, m3: {m3}, value: {float(val.evalf())}\n")
