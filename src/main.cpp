@@ -35,10 +35,10 @@ int main(int argc, char **argv) {
 
   // 3) Build initial conditions (one per rank)
   std::vector<long double> EnergyValues = {5, 10, 15, 20, 25, 30};
-  int matrixDimension = 2;
-  long double mu = 0.25;
-  long double lambda = 0.05;
-  long double R = 20.0;
+  int matrixDimension = 3;
+  long double mu = 0.025;
+  long double lambda = 10.0;
+  long double R = 0.2;
   auto HTable = LoadHTable(matrixDimension);
   std::vector<std::vector<long double>> allICs(world_size);
   for (int r = 0; r < world_size; ++r) {
@@ -48,7 +48,7 @@ int main(int argc, char **argv) {
   auto myIC = allICs[world_rank];
 
   long double dt = 1e-6L;
-  int numSteps = 800;
+  int numSteps = 1600;
 
   if (world_rank == 0) {
     std::cout << "Running " << world_size << " trajectories in parallel...\n";
@@ -86,15 +86,16 @@ int main(int argc, char **argv) {
     }
   }
 
-  // 6) Write out traced CSV:
-  //    EOMPolarizationBasis_<datetime>_<rank>_Traced.csv
   {
-    std::ostringstream fn;
-    fn << "./data/csv/EOMPolarizationBasis_" << datetime << "_"
-       << EnergyValues[world_rank] << "_Traced.csv";
+    long double E = EnergyValues[world_rank];
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(0) << E;
+    std::string energy_str = oss.str();
     CalculateTracedValues(std::string("EOMPolarizationBasis_") + datetime +
-                              "_" + std::to_string(world_rank) + ".csv",
-                          fn.str(), matrixDimension);
+                              "_" + energy_str + ".csv",
+                          std::string("EOMPolarizationBasis_") + datetime +
+                              "_" + energy_str + "_Traced.csv",
+                          matrixDimension);
   }
 
   if (world_rank == 0) {

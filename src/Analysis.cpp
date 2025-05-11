@@ -141,6 +141,8 @@ SeparateAsMinStd(const std::vector<long double> &numbers) {
 void CalculateTracedValues(const std::string &inputFileName,
                            const std::string &outputFileName, int N) {
   // Open the input CSV file
+  std::cout << inputFileName << "\n";
+  std::cout << outputFileName << "\n";
   std::ifstream inputFile("./data/csv/" + inputFileName);
   if (!inputFile.is_open()) {
     std::cerr << "Error opening input file" << std::endl;
@@ -191,7 +193,7 @@ void CalculateTracedValues(const std::string &inputFileName,
     }
 
     // Ensure that the line has enough elements
-    if (lineValues.size() < static_cast<size_t>(2 * Imax + 3 * CovMax)) {
+    if (lineValues.size() < static_cast<size_t>(3 * CovMax)) {
       std::cerr << "Line " << lineNum + 1 << " does not have enough elements."
                 << std::endl;
       continue;
@@ -209,10 +211,10 @@ void CalculateTracedValues(const std::string &inputFileName,
         for (int a = 1; a <= 2; a++) {
           int idx_a1_a1_l1m1_l1m1 = indexXX(a, 1, l1, m1, a, 1, l1, m1, N);
           int idx_a2_a2_l1m1_l1m1 = indexXX(a, 2, l1, m1, a, 2, l1, m1, N);
-          XTrace += lineValues[2 * Imax + idx_a1_a1_l1m1_l1m1];
-          XTrace += lineValues[2 * Imax + idx_a2_a2_l1m1_l1m1];
-          PTrace += lineValues[2 * Imax + CovMax + idx_a1_a1_l1m1_l1m1];
-          PTrace += lineValues[2 * Imax + CovMax + idx_a2_a2_l1m1_l1m1];
+          XTrace += lineValues[idx_a1_a1_l1m1_l1m1];
+          XTrace += lineValues[idx_a2_a2_l1m1_l1m1];
+          PTrace += lineValues[CovMax + idx_a1_a1_l1m1_l1m1];
+          PTrace += lineValues[CovMax + idx_a2_a2_l1m1_l1m1];
         }
       }
     }

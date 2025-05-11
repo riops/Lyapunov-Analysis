@@ -206,11 +206,11 @@ std::vector<long double>
 averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
     const std::vector<long double> &allVectors,
     const std::vector<std::vector<double>> &H) {
-  long double mu = 0.25;    // Previous value was 1.0
-  long double lambda = 0.5; // Previous value was 10.0
-  long double R = 20.0;
+  long double mu = 0.025;    // Previous value was 1.0
+  long double lambda = 10.0; // Previous value was 10.0
+  long double R = 0.2;
 
-  int N = 2;
+  int N = 3;
   int Imax = 4 * (N * N);   // Number of averaged variables
   int CovMax = Imax * Imax; // Number of covariance terms
 
@@ -329,10 +329,10 @@ averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
                            XP[idx_dj_ai_l4m4_l1m1] * XX[idx_ck_bk_l3m3_l5m5]);
                     }
 
-                    result[CovMax + idx_ai_ej_l1m1_l2m2] +=
+                    result[CovMax + idx_ai_ej_l1m1_l2m2] -=
                         (lambda * (ppDotSubSum1 + ppDotSubSum2) / N);
 
-                    result[2 * CovMax + idx_ai_ej_l1m1_l2m2] +=
+                    result[2 * CovMax + idx_ai_ej_l1m1_l2m2] -=
                         (lambda * xpDotSubSum / N);
                   }
                 }
