@@ -204,6 +204,7 @@ void CalculateTracedValues(const std::string &inputFileName,
     // long double XTrace = 0.0;
     long double PTrace = 0.0;
     // long double PTrace = 0.0;
+    long double XPTrace = 0.0;
 
     // Perform the calculations
     for (int l1 = 0; l1 < N; l1++) {
@@ -215,12 +216,14 @@ void CalculateTracedValues(const std::string &inputFileName,
           XTrace += lineValues[idx_a2_a2_l1m1_l1m1];
           PTrace += lineValues[CovMax + idx_a1_a1_l1m1_l1m1];
           PTrace += lineValues[CovMax + idx_a2_a2_l1m1_l1m1];
+          XPTrace += lineValues[2 * CovMax + idx_a1_a1_l1m1_l1m1];
+          XPTrace += lineValues[2 * CovMax + idx_a2_a2_l1m1_l1m1];
         }
       }
     }
 
     // Write the results to the output file
-    outputFile << XTrace / N << "," << PTrace / N << "\n";
+    outputFile << XTrace / N << "," << PTrace / N << "," << XPTrace / N << "\n";
   }
 
   // Close the files

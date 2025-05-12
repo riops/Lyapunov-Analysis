@@ -78,6 +78,7 @@ class MainWindow(QMainWindow):
         self.current_time_list = []
         self.selected_steps = 1  # Default value for the slider
         self.current_vars = []   # Store variables selected for saving
+        self.traced_flag = False # Will be set when a "Traced" file is loaded
 
         # Main widget and layout
         main_widget = QWidget(self)
@@ -129,7 +130,7 @@ class MainWindow(QMainWindow):
         self.time_slider = QSlider(Qt.Horizontal)
         self.time_slider.setMinimum(1)
         self.time_slider.valueChanged.connect(self.update_slider_label)
-        self.time_slider.valueChanged.connect(self.plot_selected_vars)  # Auto-update plot on slider change
+        self.time_slider.valueChanged.connect(self.plot_selected_vars)
         left_layout.addWidget(self.slider_label)
         left_layout.addWidget(self.time_slider)
 
@@ -173,12 +174,12 @@ class MainWindow(QMainWindow):
         csv_files = glob.glob(os.path.join(os.getcwd(), "data", "csv", "*.csv"))
         csv_files.sort(key=os.path.getmtime, reverse=True)
         for file_path in csv_files:
-            file_name = os.path.splitext(os.path.basename(file_path))[0]  # Extract file name without extension
-            self.file_list.addItem(file_name)  # Add file name to list
-            self.file_paths[file_name] = file_path  # Store full path in dictionary
+            file_name = os.path.splitext(os.path.basename(file_path))[0]
+            self.file_list.addItem(file_name)
+            self.file_paths[file_name] = file_path
 
     def read_csv(self, filename):
-        file_path = self.file_paths[filename]  # Retrieve full path from dictionary
+        file_path = self.file_paths[filename]
         with open(file_path, "r") as f:
             reader = csv.reader(f)
             spectrum = [list(map(float, row)) for row in reader]
@@ -189,62 +190,57 @@ class MainWindow(QMainWindow):
         return [[matrix[j][i] for j in range(len(matrix))] for i in range(len(matrix[0]))]
 
     def load_and_display_vars(self):
-        # Check if a file is selected
         selected_item = self.file_list.currentItem()
         if selected_item:
             self.current_file_name = selected_item.text()
-            self.current_spectrum, self.current_time_list = self.read_csv(self.current_file_name)
+            # detect traced files
+            self.traced_flag = "traced" in self.current_file_name.lower()
 
-            # Set the slider range to the number of time steps
+            self.current_spectrum, self.current_time_list = self.read_csv(self.current_file_name)
             num_timesteps = len(self.current_time_list)
             self.time_slider.setMaximum(num_timesteps)
-            self.time_slider.setValue(num_timesteps)  # Default to max time steps
+            self.time_slider.setValue(num_timesteps)
         elif not self.current_file_name:
-            return  # No file selected, do nothing
+            return
 
-        # Clear any existing checkboxes in the vars_layout
+        # clear existing checkboxes
         for i in reversed(range(self.vars_layout.count())):
             widget = self.vars_layout.itemAt(i).widget()
             if widget:
                 widget.setParent(None)
 
-        # Reset current_vars
         self.current_vars = []
-
-        # Add "Time" checkbox
+        # Time checkbox
         time_checkbox = QCheckBox("Time")
         time_checkbox.setStyleSheet("QCheckBox { color: white; }")
-        time_checkbox.setChecked(False)  # Ensure it's unchecked
-        time_checkbox.stateChanged.connect(self.plot_selected_vars)  # Auto-update plot on checkbox change
+        time_checkbox.stateChanged.connect(self.plot_selected_vars)
         self.vars_layout.addWidget(time_checkbox)
 
-        num_vars_displayed = 0  # Counter for number of variables displayed (excluding Time)
-        seen_vars = set()  # Set to store seen variables if ignoring duplicates
+        num_vars_displayed = 0
+        seen_vars = set()
 
-        # Add checkboxes for each variable
         for i, var_data in enumerate(self.current_spectrum):
-            # If 'Ignore zero values' is checked, skip variables that are all zero
-            if self.ignore_zero_checkbox.isChecked():
-                if all(v == 0 for v in var_data):
-                    continue
-
-            # If 'Ignore duplicates' is checked, skip duplicate variables
+            if self.ignore_zero_checkbox.isChecked() and all(v == 0 for v in var_data):
+                continue
             if self.ignore_duplicates_checkbox.isChecked():
-                # Quantize data to 4 decimal places to avoid floating point precision issues
-                var_data_quantized = tuple(round(v, 4) for v in var_data)
-                if var_data_quantized in seen_vars:
+                quant = tuple(round(v, 4) for v in var_data)
+                if quant in seen_vars:
                     continue
-                else:
-                    seen_vars.add(var_data_quantized)
+                seen_vars.add(quant)
 
-            checkbox = QCheckBox(f"x{i + 1}")
+            # custom labeling for traced files
+            if self.traced_flag and i < 3:
+                labels = ["<<Tr(XX)>>/N", "<<Tr(PP)>>/N", "<<Tr(XP)>>/N"]
+                cb_label = labels[i]
+            else:
+                cb_label = f"x{i+1}"
+
+            checkbox = QCheckBox(cb_label)
             checkbox.setStyleSheet("QCheckBox { color: white; }")
-            checkbox.setChecked(False)  # Ensure it's unchecked
-            checkbox.stateChanged.connect(self.plot_selected_vars)  # Auto-update plot on checkbox change
+            checkbox.stateChanged.connect(self.plot_selected_vars)
             self.vars_layout.addWidget(checkbox)
             num_vars_displayed += 1
 
-        # Update the number of variables label
         self.num_vars_label.setText(f"Number of variables (excluding Time): {num_vars_displayed}")
 
     def unselect_all_vars(self):
@@ -252,47 +248,60 @@ class MainWindow(QMainWindow):
             cb.setChecked(False)
 
     def update_slider_label(self, value):
-        # Update the label and set the selected time steps
         self.slider_label.setText(f"Number of Time Steps: {value}")
         self.selected_steps = value
 
     def plot_selected_vars(self):
-        # Get selected variables
-        selected_vars = []
+        selected = []
         for cb in self.vars_widget.findChildren(QCheckBox):
             if cb.isChecked():
                 if cb.text() == "Time":
-                    selected_vars.append("Time")
+                    selected.append("Time")
                 else:
-                    selected_vars.append(int(cb.text().replace("x", "")) - 1)
+                    try:
+                        selected.append(int(cb.text().replace("x", "")) - 1)
+                    except ValueError:
+                        selected.append(cb.text())
 
-        # Validate the selection before plotting
-        if "Time" in selected_vars:
-            if len(selected_vars) < 2:
+        if "Time" in selected:
+            if len(selected) < 2:
                 self.message_label.setText("Select at least one variable in addition to Time.")
                 return
-            self.message_label.setText("")  # Clear message if selection is valid
+            self.message_label.setText("")
             x_axis = self.current_time_list[:self.selected_steps]
-            y_axes = [self.current_spectrum[var][:self.selected_steps] for var in selected_vars if var != "Time"]
+            y_axes, y_titles = [], []
+            for var in selected:
+                if var == "Time":
+                    continue
+                if isinstance(var, int):
+                    y_axes.append(self.current_spectrum[var][:self.selected_steps])
+                    y_titles.append(f"x{var+1}")
+                else:
+                    idx_map = {"<<Tr(XX)>>/N":0, "<<Tr(PP)>>/N":1, "<<Tr(XP)>>/N":2}
+                    idx = idx_map[var]
+                    y_axes.append(self.current_spectrum[idx][:self.selected_steps])
+                    y_titles.append(var)
             x_title = "Time"
-            y_titles = [f"x{var + 1}" for var in selected_vars if var != "Time"]
+
         else:
-            if len(selected_vars) != 2:
+            if len(selected) != 2:
                 self.message_label.setText("Select exactly two variables for plotting.")
                 return
-            self.message_label.setText("")  # Clear message if selection is valid
-            var1, var2 = selected_vars
+            self.message_label.setText("")
+            var1, var2 = selected
             x_axis = self.current_spectrum[var1][:self.selected_steps]
             y_axes = [self.current_spectrum[var2][:self.selected_steps]]
-            x_title = f"x{var1 + 1}"
-            y_titles = [f"x{var2 + 1}"]
+            x_title = f"x{var1+1}"
+            y_titles = [f"x{var2+1}"]
+
+        # dimension mismatch check
+        for y in y_axes:
+            if len(y) != len(x_axis):
+                self.message_label.setText("Error: x and y data have different lengths.")
+                return
 
         title = f"Equations of Motion for {self.current_file_name}"
-
-        # Plotting
         self.canvas.plot(x_axis, y_axes, x_title, y_titles, title)
-
-        # Store variables for saving with names that match the plot titles
         self.current_vars = [x_title] + y_titles
 
     def save_plot(self):
@@ -312,11 +321,9 @@ class MainWindow(QMainWindow):
                 return
             save_path = os.path.join(os.getcwd(), "data", "plots", f"{custom_name}.png")
 
-        # Use a dark background for the saved plot
         self.canvas.figure.savefig(save_path, facecolor="#2e2e2e")
         QMessageBox.information(self, "Plot Saved", f"Plot saved as: {save_path}")
 
-# Run the application
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
