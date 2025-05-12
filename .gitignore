@@ -5,7 +5,7 @@ builds/
 .vscode/
 
 # Slurm files
-run_lyapunov_mpi.slurm
+# run_lyapunov_mpi.slurm
 
 #Todo.md files
 ./Todo.md
