@@ -11,4 +11,4 @@ run_lyapunov_mpi.slurm
 ./Todo.md
 
 #tests
-test_*.cpp
+# test_*.cpp

@@ -302,12 +302,16 @@ std::vector<std::vector<long double>> IntegrateSystem5(
   std::vector<std::vector<long double>> result;
   std::vector<long double> currentPoint = point;
   std::vector<long double> dtVector = {dt};
+  if (allValues) {
+    result.push_back(currentPoint);
+  }
 
   for (int i = 0; i < numSteps; i++) {
     currentPoint = RungeKutta5(f, currentPoint, dt);
     if (allValues) {
       result.push_back(currentPoint);
     }
+    dtVector.push_back(dt + dtVector[i]);
   }
   if (!allValues) {
     result.push_back(currentPoint);

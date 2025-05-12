@@ -16,16 +16,9 @@ int indexXXInt(int a1, int i1, int l1, int m1, int a2, int i2, int l2, int m2,
 
 std::vector<long double>
 averagedEquationsPolarizationBasisSymmetryReducedParallel(
-    const std::vector<long double> &allVectors);
-
-std::vector<long double>
-averagedEquationsPolarizationBasisSymmetryReducedParallelTrial(
     const std::vector<long double> &allVectors,
-    const std::vector<std::vector<double>> &H);
-
-std::vector<long double>
-averagedEquationsPolarizationBasisSymmetryReducedParallelMpi(
-    const std::vector<long double> &allVectors, int world_rank, int world_size);
+    const std::vector<std::vector<double>> &H, long double mu,
+    long double lambda, long double R, int N);
 
 std::vector<long double> GenerateSigmaAnsatzI(long double E, long double lambda,
                                               long double R, long double mu,
