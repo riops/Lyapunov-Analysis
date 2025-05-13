@@ -2,9 +2,7 @@ import sys
 import os
 import glob
 import csv
-import math
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QListWidget, QPushButton, QCheckBox, QLabel, QInputDialog,
@@ -13,40 +11,8 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-# Dark palette + MathText via $...$
+# Enable dark mode for matplotlib plots
 plt.style.use("seaborn-v0_8-dark-palette")
-mpl.rcParams['text.usetex'] = False
-
-# ─── Index‐inversion utilities ─────────────────────────────────────────────
-
-def reverse_indexX(idx: int, N: int):
-    block = N * N
-    group, offset = divmod(idx, block)
-    a = group // 2 + 1
-    i = group % 2  + 1
-    l = math.isqrt(offset)
-    m = offset - (l*l + l)
-    return a, i, l, m
-
-def reverse_indexXX(idx: int, N: int):
-    max_index = 4 * (N * N)
-    i1, i2 = divmod(idx, max_index)
-    a1, i1_, l1, m1 = reverse_indexX(i1, N)
-    a2, i2_, l2, m2 = reverse_indexX(i2, N)
-    return a1, i1_, l1, m1, a2, i2_, l2, m2
-
-def generate_var_label(idx: int, N: int):
-    num_per_block = 16 * (N**4)
-    block_idx      = idx // num_per_block       # 0=XX,1=PP,2=XP
-    inner_idx      = idx % num_per_block
-    names          = ['XX','PP','XP']
-    sym_map        = {'XX':('X','X'), 'PP':('P','P'), 'XP':('X','P')}
-    blk = names[block_idx]
-    S1, S2 = sym_map[blk]
-    a1,i1,l1,m1,a2,i2,l2,m2 = reverse_indexXX(inner_idx, N)
-    return rf"$\langle {S1}_{{{i1},{a1}}}^{{{l1},{m1}}}\,{S2}_{{{i2},{a2}}}^{{{l2},{m2}}}\rangle$"
-
-# ─── Plot canvas ────────────────────────────────────────────────────────────
 
 class PlotCanvas(FigureCanvas):
     def __init__(self, parent=None):
@@ -56,37 +22,47 @@ class PlotCanvas(FigureCanvas):
         self.title_text = None
         self.x_label_text = None
         self.y_label_text = None
+
+        # Connect pick events to handle clicks on text elements
         self.figure.canvas.mpl_connect('pick_event', self.on_pick)
 
     def plot(self, x_axis, y_axes, x_title, y_titles, title):
         self.ax.clear()
-        for y_axis, y_label in zip(y_axes, y_titles):
-            self.ax.plot(x_axis, y_axis, label=y_label)
+        for y_axis, y_title in zip(y_axes, y_titles):
+            self.ax.plot(x_axis, y_axis, label=y_title)
+        # Set labels and make them pickable
         self.x_label_text = self.ax.set_xlabel(x_title, picker=True)
         self.y_label_text = self.ax.set_ylabel("Variables", picker=True)
-        self.title_text   = self.ax.set_title(title, picker=True)
+        self.title_text = self.ax.set_title(title, picker=True)
         self.ax.legend()
         self.draw()
 
     def on_pick(self, event):
-        art = event.artist
-        if   art == self.title_text:   self.edit_title()
-        elif art == self.x_label_text: self.edit_x_label()
-        elif art == self.y_label_text: self.edit_y_label()
+        artist = event.artist
+        if artist == self.title_text:
+            self.edit_title()
+        elif artist == self.x_label_text:
+            self.edit_x_label()
+        elif artist == self.y_label_text:
+            self.edit_y_label()
 
     def edit_title(self):
-        t, ok = QInputDialog.getText(self.parent(), "Edit Title", "New title:")
-        if ok and t: self.title_text.set_text(t); self.draw()
+        text, ok = QInputDialog.getText(self.parent(), "Edit Title", "Enter new title:")
+        if ok and text:
+            self.title_text.set_text(text)
+            self.draw()
 
     def edit_x_label(self):
-        t, ok = QInputDialog.getText(self.parent(), "Edit X Label", "New x-axis:")
-        if ok and t: self.x_label_text.set_text(t); self.draw()
+        text, ok = QInputDialog.getText(self.parent(), "Edit X-Axis Label", "Enter new x-axis label:")
+        if ok and text:
+            self.x_label_text.set_text(text)
+            self.draw()
 
     def edit_y_label(self):
-        t, ok = QInputDialog.getText(self.parent(), "Edit Y Label", "New y-axis:")
-        if ok and t: self.y_label_text.set_text(t); self.draw()
-
-# ─── Main window ────────────────────────────────────────────────────────────
+        text, ok = QInputDialog.getText(self.parent(), "Edit Y-Axis Label", "Enter new y-axis label:")
+        if ok and text:
+            self.y_label_text.set_text(text)
+            self.draw()
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -95,282 +71,261 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 1000, 600)
         self.setStyleSheet("background-color: #2e2e2e; color: white;")
 
+        # Dictionary to store full paths with filenames as keys
         self.file_paths = {}
         self.current_file_name = ""
         self.current_spectrum = []
         self.current_time_list = []
-        self.selected_steps = 1
-        self.traced_flag = False
-        self.current_vars = []
+        self.selected_steps = 1  # Default value for the slider
+        self.current_vars = []   # Store variables selected for saving
+        self.traced_flag = False # Will be set when a "Traced" file is loaded
 
-        # UI scaffolding
-        main_w = QWidget(self); self.setCentralWidget(main_w)
-        main_L = QHBoxLayout(main_w)
+        # Main widget and layout
+        main_widget = QWidget(self)
+        self.setCentralWidget(main_widget)
+        main_layout = QHBoxLayout()
+        main_widget.setLayout(main_layout)
 
-        # ─ Left panel ─────────────────────────────────────────────────────────
-        left = QVBoxLayout()
+        # Left panel for file list and selection feedback
+        left_layout = QVBoxLayout()
         self.file_list = QListWidget()
-        self.file_list.setStyleSheet("QListWidget { background:#2e2e2e; color:white; }")
+        self.file_list.setStyleSheet(
+            "QListWidget { background-color: #2e2e2e; color: white; }"
+        )
         self.load_csv_files()
         self.file_list.itemClicked.connect(self.load_and_display_vars)
-        left.addWidget(self.file_list)
+        left_layout.addWidget(self.file_list)
 
+        # Variable selection message label
         self.message_label = QLabel("")
-        self.message_label.setStyleSheet("color:red;")
-        left.addWidget(self.message_label)
+        self.message_label.setStyleSheet("color: red;")
+        left_layout.addWidget(self.message_label)
 
-        self.num_vars_label = QLabel("Number of vars (excl Time): 0")
-        self.num_vars_label.setStyleSheet("color:white;")
-        left.addWidget(self.num_vars_label)
+        # Number of variables label
+        self.num_vars_label = QLabel("Number of variables (excluding Time): 0")
+        self.num_vars_label.setStyleSheet("color: white;")
+        left_layout.addWidget(self.num_vars_label)
 
+        # Checkbox container for variables
         self.vars_container = QScrollArea()
         self.vars_container.setWidgetResizable(True)
         self.vars_widget = QWidget()
-        self.vars_layout = QVBoxLayout(self.vars_widget)
+        self.vars_layout = QVBoxLayout()
+        self.vars_widget.setLayout(self.vars_layout)
         self.vars_container.setWidget(self.vars_widget)
-        left.addWidget(self.vars_container)
+        left_layout.addWidget(self.vars_container)
 
-        btn_un = QPushButton("Unselect All")
-        btn_un.clicked.connect(self.unselect_all_vars)
-        btn_un.setStyleSheet(
-            "QPushButton { background:#3a3a3a; color:white; }"
-            "QPushButton:hover { background:#505050; }"
+        # Unselect All button
+        self.unselect_all_button = QPushButton("Unselect All")
+        self.unselect_all_button.clicked.connect(self.unselect_all_vars)
+        self.unselect_all_button.setStyleSheet(
+            "QPushButton { background-color: #3a3a3a; color: white; border: none; }"
+            "QPushButton:hover { background-color: #505050; }"
         )
-        left.addWidget(btn_un)
+        left_layout.addWidget(self.unselect_all_button)
 
+        # Slider for time steps
         self.slider_label = QLabel("Number of Time Steps: 1")
-        self.slider_label.setStyleSheet("color:white;")
-        left.addWidget(self.slider_label)
-
+        self.slider_label.setStyleSheet("color: white;")
         self.time_slider = QSlider(Qt.Horizontal)
         self.time_slider.setMinimum(1)
         self.time_slider.valueChanged.connect(self.update_slider_label)
         self.time_slider.valueChanged.connect(self.plot_selected_vars)
-        left.addWidget(self.time_slider)
+        left_layout.addWidget(self.slider_label)
+        left_layout.addWidget(self.time_slider)
 
+        # Checkbox for ignoring zero values
         self.ignore_zero_checkbox = QCheckBox("Ignore zero values")
-        self.ignore_zero_checkbox.setStyleSheet("color:white;")
+        self.ignore_zero_checkbox.setStyleSheet("QCheckBox { color: white; }")
         self.ignore_zero_checkbox.stateChanged.connect(self.load_and_display_vars)
-        left.addWidget(self.ignore_zero_checkbox)
+        left_layout.addWidget(self.ignore_zero_checkbox)
 
-        self.ignore_dup_checkbox = QCheckBox("Ignore duplicates")
-        self.ignore_dup_checkbox.setStyleSheet("color:white;")
-        self.ignore_dup_checkbox.stateChanged.connect(self.load_and_display_vars)
-        left.addWidget(self.ignore_dup_checkbox)
+        # Checkbox for ignoring duplicate variables
+        self.ignore_duplicates_checkbox = QCheckBox("Ignore duplicates")
+        self.ignore_duplicates_checkbox.setStyleSheet("QCheckBox { color: white; }")
+        self.ignore_duplicates_checkbox.stateChanged.connect(self.load_and_display_vars)
+        left_layout.addWidget(self.ignore_duplicates_checkbox)
 
+        # Checkbox for default naming
         self.default_name_checkbox = QCheckBox("Use default name")
-        self.default_name_checkbox.setStyleSheet("color:white;")
-        left.addWidget(self.default_name_checkbox)
+        self.default_name_checkbox.setStyleSheet("QCheckBox { color: white; }")
+        left_layout.addWidget(self.default_name_checkbox)
 
-        btn_save = QPushButton("Save Plot")
-        btn_save.clicked.connect(self.save_plot)
-        btn_save.setStyleSheet(
-            "QPushButton { background:#3a3a3a; color:white; }"
-            "QPushButton:hover { background:#505050; }"
+        # Save Plot button
+        self.save_button = QPushButton("Save Plot")
+        self.save_button.clicked.connect(self.save_plot)
+        self.save_button.setStyleSheet(
+            "QPushButton { background-color: #3a3a3a; color: white; border: none; }"
+            "QPushButton:hover { background-color: #505050; }"
         )
-        left.addWidget(btn_save)
-        # ─────────────────────────────────────────────────────────────────────
+        left_layout.addWidget(self.save_button)
 
-        # ─ Right panel ───────────────────────────────────────────────────────
+        # Canvas for displaying plots
         self.canvas = PlotCanvas(self)
-        right = QVBoxLayout()
-        right.addWidget(self.canvas)
-        # ─────────────────────────────────────────────────────────────────────
+        right_layout = QVBoxLayout()
+        right_layout.addWidget(self.canvas)
 
-        main_L.addLayout(left,1)
-        main_L.addLayout(right,3)
+        # Adding layouts to main layout
+        main_layout.addLayout(left_layout, 1)
+        main_layout.addLayout(right_layout, 3)
 
-    # ─── CSV loading ────────────────────────────────────────────────────────
     def load_csv_files(self):
-        folder = os.path.join(os.getcwd(), "data", "csv")
-        files  = glob.glob(os.path.join(folder, "*.csv"))
-        files.sort(key=os.path.getmtime, reverse=True)
-        for p in files:
-            name = os.path.splitext(os.path.basename(p))[0]
-            self.file_list.addItem(name)
-            self.file_paths[name] = p
+        # Load CSV files sorted by modification time
+        csv_files = glob.glob(os.path.join(os.getcwd(), "data", "csv", "*.csv"))
+        csv_files.sort(key=os.path.getmtime, reverse=True)
+        for file_path in csv_files:
+            file_name = os.path.splitext(os.path.basename(file_path))[0]
+            self.file_list.addItem(file_name)
+            self.file_paths[file_name] = file_path
 
-    def read_csv(self, name):
-        with open(self.file_paths[name], "r") as f:
+    def read_csv(self, filename):
+        file_path = self.file_paths[filename]
+        with open(file_path, "r") as f:
             reader = csv.reader(f)
-            data   = [list(map(float,row)) for row in reader]
-        time_list = data.pop(-1)
-        return list(map(list, zip(*data))), time_list
+            spectrum = [list(map(float, row)) for row in reader]
+            time_list = spectrum.pop(-1)
+            return self.transpose(spectrum), time_list
 
-    # ─── Populate checkboxes ────────────────────────────────────────────────
+    def transpose(self, matrix):
+        return [[matrix[j][i] for j in range(len(matrix))] for i in range(len(matrix[0]))]
+
     def load_and_display_vars(self):
-        itm = self.file_list.currentItem()
-        if itm:
-            self.current_file_name = itm.text()
-            self.traced_flag = "traced" in itm.text().lower()
+        selected_item = self.file_list.currentItem()
+        if selected_item:
+            self.current_file_name = selected_item.text()
+            # detect traced files
+            self.traced_flag = "traced" in self.current_file_name.lower()
+
             self.current_spectrum, self.current_time_list = self.read_csv(self.current_file_name)
-            n = len(self.current_time_list)
-            self.time_slider.setMaximum(n)
-            self.time_slider.setValue(n)
+            num_timesteps = len(self.current_time_list)
+            self.time_slider.setMaximum(num_timesteps)
+            self.time_slider.setValue(num_timesteps)
         elif not self.current_file_name:
             return
 
-        # compute N from covariance rows
-        total = len(self.current_spectrum)
-        cov   = total - (3 if self.traced_flag else 0)
-        raw   = cov / 48 if cov>0 else 0
-        N     = int(round(raw**0.25)) if raw>0 else 0
-
-        # clear old widgets & our list
+        # clear existing checkboxes
         for i in reversed(range(self.vars_layout.count())):
-            w = self.vars_layout.itemAt(i).widget()
-            if w: w.setParent(None)
-        self.series_checkboxes = []
+            widget = self.vars_layout.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
 
-        # “Time” checkbox (always shown)
-        cb_t = QCheckBox("Time")
-        cb_t.setStyleSheet("color:white;")
-        cb_t.stateChanged.connect(self.plot_selected_vars)
-        self.vars_layout.addWidget(cb_t)
+        self.current_vars = []
+        # Time checkbox
+        time_checkbox = QCheckBox("Time")
+        time_checkbox.setStyleSheet("QCheckBox { color: white; }")
+        time_checkbox.stateChanged.connect(self.plot_selected_vars)
+        self.vars_layout.addWidget(time_checkbox)
 
-        # now build one cb per series_index=i
-        for i, series in enumerate(self.current_spectrum):
-            if self.traced_flag and i<3:
-                label = ["<<Tr(XX)>>/N","<<Tr(PP)>>/N","<<Tr(XP)>>/N"][i]
+        num_vars_displayed = 0
+        seen_vars = set()
+
+        for i, var_data in enumerate(self.current_spectrum):
+            if self.ignore_zero_checkbox.isChecked() and all(v == 0 for v in var_data):
+                continue
+            if self.ignore_duplicates_checkbox.isChecked():
+                quant = tuple(round(v, 4) for v in var_data)
+                if quant in seen_vars:
+                    continue
+                seen_vars.add(quant)
+
+            # custom labeling for traced files
+            if self.traced_flag and i < 3:
+                labels = ["<<Tr(XX)>>/N", "<<Tr(PP)>>/N", "<<Tr(XP)>>/N"]
+                cb_label = labels[i]
             else:
-                cov_idx  = i - (3 if self.traced_flag else 0)
-                num_blk  = 16 * (N**4)
-                blk_idx  = cov_idx // num_blk
-                blk_name = ['XX','PP','XP'][blk_idx]
-                a1,i1,l1,m1,a2,i2,l2,m2 = reverse_indexXX(cov_idx, N)
-                label = (f"<<{blk_name}>>: a1={a1}, i1={i1}, l1={l1}, m1={m1}, "
-                         f"a2={a2}, i2={i2}, l2={l2}, m2={m2}")
+                cb_label = f"x{i+1}"
 
-            cb = QCheckBox(label)
-            cb.setStyleSheet("color:white;")
-            cb.series_index = i
-            cb.stateChanged.connect(self.plot_selected_vars)
-            self.vars_layout.addWidget(cb)
-            self.series_checkboxes.append(cb)
+            checkbox = QCheckBox(cb_label)
+            checkbox.setStyleSheet("QCheckBox { color: white; }")
+            checkbox.stateChanged.connect(self.plot_selected_vars)
+            self.vars_layout.addWidget(checkbox)
+            num_vars_displayed += 1
 
-        # now apply filtering by hiding unwanted boxes
-        seen = set()
-        for cb in self.series_checkboxes:
-            idx  = cb.series_index
-            data = self.current_spectrum[idx]
-            hide = False
+        self.num_vars_label.setText(f"Number of variables (excluding Time): {num_vars_displayed}")
 
-            # ignore all‐zero series?
-            if self.ignore_zero_checkbox.isChecked() and all(v==0 for v in data):
-                hide = True
-
-            # ignore duplicates?
-            if self.ignore_dup_checkbox.isChecked():
-                key = tuple(round(v,4) for v in data)
-                if key in seen:
-                    hide = True
-                else:
-                    seen.add(key)
-
-            cb.setVisible(not hide)
-
-        # update count of visible (excluding Time)
-        visible_count = sum(1 for cb in self.series_checkboxes if cb.isVisible())
-        self.num_vars_label.setText(f"Number of vars (excl Time): {visible_count}")
-
-    # ─── Helpers ────────────────────────────────────────────────────────────
     def unselect_all_vars(self):
         for cb in self.vars_widget.findChildren(QCheckBox):
             cb.setChecked(False)
 
-    def update_slider_label(self, v):
-        self.slider_label.setText(f"Number of Time Steps: {v}")
-        self.selected_steps = v
+    def update_slider_label(self, value):
+        self.slider_label.setText(f"Number of Time Steps: {value}")
+        self.selected_steps = value
 
-    # ─── Build sel[], then plot ─────────────────────────────────────────────
     def plot_selected_vars(self):
-        # compute N again
-        total = len(self.current_spectrum)
-        cov   = total - (3 if self.traced_flag else 0)
-        raw   = cov / 48 if cov>0 else 0
-        N     = int(round(raw**0.25)) if raw>0 else 0
-
-        # legend map for traced
-        traced_legend = {
-            0: r'$\dfrac{<\mathrm{Tr}(X_i X_i)>}{N}$',
-            1: r'$\dfrac{<\mathrm{Tr}(P_i P_i)>}{N}$',
-            2: r'$\dfrac{<\mathrm{Tr}(X_i P_i)>}{N}$'
-        }
-
-        # collect selections by series_index
-        sel = []
+        selected = []
         for cb in self.vars_widget.findChildren(QCheckBox):
-            if not cb.isChecked():
-                continue
-            if hasattr(cb, 'series_index'):
-                sel.append(cb.series_index)
-            else:
-                # “Time”
-                sel.append("Time")
+            if cb.isChecked():
+                if cb.text() == "Time":
+                    selected.append("Time")
+                else:
+                    try:
+                        selected.append(int(cb.text().replace("x", "")) - 1)
+                    except ValueError:
+                        selected.append(cb.text())
 
-        # time‐series path
-        if "Time" in sel:
-            if len(sel) < 2:
+        if "Time" in selected:
+            if len(selected) < 2:
                 self.message_label.setText("Select at least one variable in addition to Time.")
                 return
-            self.message_label.clear()
-
-            x_axis  = self.current_time_list[:self.selected_steps]
+            self.message_label.setText("")
+            x_axis = self.current_time_list[:self.selected_steps]
             y_axes, y_titles = [], []
-
-            for v in sel:
-                if v == "Time": continue
-                y_axes.append(self.current_spectrum[v][:self.selected_steps])
-                if self.traced_flag and v < 3:
-                    y_titles.append(traced_legend[v])
+            for var in selected:
+                if var == "Time":
+                    continue
+                if isinstance(var, int):
+                    y_axes.append(self.current_spectrum[var][:self.selected_steps])
+                    y_titles.append(f"x{var+1}")
                 else:
-                    cov_idx = v - (3 if self.traced_flag else 0)
-                    y_titles.append(generate_var_label(cov_idx, N))
+                    idx_map = {"<<Tr(XX)>>/N":0, "<<Tr(PP)>>/N":1, "<<Tr(XP)>>/N":2}
+                    idx = idx_map[var]
+                    y_axes.append(self.current_spectrum[idx][:self.selected_steps])
+                    y_titles.append(var)
+            x_title = "Time"
 
-            x_label = "Time"
-
-        # scatter / pair‐plot path
         else:
-            if len(sel) != 2:
+            if len(selected) != 2:
                 self.message_label.setText("Select exactly two variables for plotting.")
                 return
-            self.message_label.clear()
+            self.message_label.setText("")
+            var1, var2 = selected
+            x_axis = self.current_spectrum[var1][:self.selected_steps]
+            y_axes = [self.current_spectrum[var2][:self.selected_steps]]
+            x_title = f"x{var1+1}"
+            y_titles = [f"x{var2+1}"]
 
-            i1, i2 = sel
-            x_axis  = self.current_spectrum[i1][:self.selected_steps]
-            y_axes  = [self.current_spectrum[i2][:self.selected_steps]]
-            x_label = f"x{i1+1}"
-            y_titles= [f"x{i2+1}"]
-
-        # length check
+        # dimension mismatch check
         for y in y_axes:
             if len(y) != len(x_axis):
                 self.message_label.setText("Error: x and y data have different lengths.")
                 return
 
         title = f"Equations of Motion for {self.current_file_name}"
-        self.canvas.plot(x_axis, y_axes, x_label, y_titles, title)
-        self.current_vars = [x_label] + y_titles
+        self.canvas.plot(x_axis, y_axes, x_title, y_titles, title)
+        self.current_vars = [x_title] + y_titles
 
-    # ─── Save ────────────────────────────────────────────────────────────────
     def save_plot(self):
         if not self.current_vars:
-            QMessageBox.warning(self, "Warning", "Please select variables first.")
+            QMessageBox.warning(self, "Warning", "Please select variables to plot before saving.")
             return
-        first, *rest = self.current_vars
-        if self.default_name_checkbox.isChecked():
-            fname = f"{self.current_file_name}_{first}_{'_'.join(rest)}.png"
-        else:
-            nm, ok = QInputDialog.getText(self, "Save As", "Custom name:")
-            if not ok or not nm: return
-            fname = f"{nm}.png"
-        out = os.path.join(os.getcwd(), "data", "plots", fname)
-        self.canvas.figure.savefig(out, facecolor="#2e2e2e")
-        QMessageBox.information(self, "Plot Saved", f"Saved: {out}")
 
-# ─── run ───────────────────────────────────────────────────────────────────
+        var1, *vars_rest = self.current_vars
+        if self.default_name_checkbox.isChecked():
+            save_path = os.path.join(
+                os.getcwd(), "data", "plots",
+                f"{self.current_file_name}_{var1}_{'_'.join(vars_rest)}.png"
+            )
+        else:
+            custom_name, ok = QInputDialog.getText(self, "Save As", "Enter custom name for the plot:")
+            if not ok or not custom_name:
+                return
+            save_path = os.path.join(os.getcwd(), "data", "plots", f"{custom_name}.png")
+
+        self.canvas.figure.savefig(save_path, facecolor="#2e2e2e")
+        QMessageBox.information(self, "Plot Saved", f"Plot saved as: {save_path}")
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    w = MainWindow()
-    w.show()
+    window = MainWindow()
+    window.show()
     sys.exit(app.exec_())

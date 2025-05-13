@@ -156,7 +156,7 @@ void CalculateTracedValues(const std::string &inputFileName,
     return;
   }
 
-  int Imax = 4 * N * N;
+  int Imax = 2 * N * N;
   int CovMax = Imax * Imax;
 
   std::string lineStr;
@@ -210,14 +210,14 @@ void CalculateTracedValues(const std::string &inputFileName,
     for (int l1 = 0; l1 < N; l1++) {
       for (int m1 = -l1; m1 <= l1; m1++) {
         for (int a = 1; a <= 2; a++) {
-          int idx_a1_a1_l1m1_l1m1 = indexXX(a, 1, l1, m1, a, 1, l1, m1, N);
-          int idx_a2_a2_l1m1_l1m1 = indexXX(a, 2, l1, m1, a, 2, l1, m1, N);
-          XTrace += lineValues[idx_a1_a1_l1m1_l1m1];
-          XTrace += lineValues[idx_a2_a2_l1m1_l1m1];
-          PTrace += lineValues[CovMax + idx_a1_a1_l1m1_l1m1];
-          PTrace += lineValues[CovMax + idx_a2_a2_l1m1_l1m1];
-          XPTrace += lineValues[2 * CovMax + idx_a1_a1_l1m1_l1m1];
-          XPTrace += lineValues[2 * CovMax + idx_a2_a2_l1m1_l1m1];
+          int idx_11_l1m1_l1m1 = indexXX(1, l1, m1, 1, l1, m1, N);
+          int idx_22_l1m1_l1m1 = indexXX(2, l1, m1, 2, l1, m1, N);
+          XTrace += lineValues[idx_11_l1m1_l1m1];
+          XTrace += lineValues[idx_22_l1m1_l1m1];
+          PTrace += lineValues[CovMax + idx_11_l1m1_l1m1];
+          PTrace += lineValues[CovMax + idx_22_l1m1_l1m1];
+          XPTrace += lineValues[2 * CovMax + idx_11_l1m1_l1m1];
+          XPTrace += lineValues[2 * CovMax + idx_22_l1m1_l1m1];
         }
       }
     }
