@@ -74,10 +74,10 @@ int main(int argc, char **argv) {
   omp_set_num_threads(110);
 
   // 3) Build initial conditions
-  std::vector<long double> EnergyValues = {8, 10, 15, 20, 25, 30};
-  int matrixDimension = 3;
-  long double mu = 10.0;
-  long double lambda = 0.5;
+  std::vector<long double> EnergyValues = {25, 10, 15, 20, 25, 30};
+  int matrixDimension = 4;
+  long double mu = 0.5;
+  long double lambda = 2.0;
   long double R = 1.0;
   auto HTable = LoadHTable(matrixDimension);
 
@@ -88,8 +88,8 @@ int main(int argc, char **argv) {
   }
   auto myIC = allICs[world_rank];
 
-  long double dt = 1e-3L;
-  int numSteps = 50000;
+  long double dt = 1e-2L;
+  int numSteps = 5000;
 
   if (world_rank == 0) {
     std::cout << "Running " << world_size << " trajectories in parallel...\n";

@@ -100,9 +100,9 @@ averagedEquationsPolarizationBasisSymmetryReducedParallel(
             int idx_dj_l5m5_l4m4 = indexXX(k, l5, m5, j, l4, m4, N);
             int idx_ai_l4m4_l1m1 = indexXX(j, l4, m4, i, l1, m1, N);
 
-            long double ppDotSubSum1 = 0;
-            long double ppDotSubSum2 = 0;
-            long double xpDotSubSum = 0;
+            long double ppDotSubSum1 = 0.0;
+            long double ppDotSubSum2 = 0.0;
+            long double xpDotSubSum = 0.0;
 
             if (l1Orl2 == l1 && m1Orm2 == m1) {
 
@@ -125,9 +125,9 @@ averagedEquationsPolarizationBasisSymmetryReducedParallel(
             }
 
             result[CovMax + idx_ej_l1m1_l2m2] -=
-                (lambda * (ppDotSubSum1 + ppDotSubSum2) / N);
+                (lambda * (ppDotSubSum1 + ppDotSubSum2));
 
-            result[2 * CovMax + idx_ej_l1m1_l2m2] -= (lambda * xpDotSubSum / N);
+            result[2 * CovMax + idx_ej_l1m1_l2m2] -= (lambda * xpDotSubSum);
           }
         }
       }
