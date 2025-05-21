@@ -12,3 +12,4 @@ builds/
 
 #tests
 # test_*.cpp
+data/csv/*.csv
